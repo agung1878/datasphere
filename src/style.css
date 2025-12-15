@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-slate-900 text-white m-0;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden; /* App-like feel */
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  @apply bg-slate-800/70 backdrop-blur-md border border-slate-700/50 shadow-xl rounded-xl;
+}
+
+/* Leaflet dark mode overrides */
+.leaflet-container {
+    background: #0f172a;
+}
