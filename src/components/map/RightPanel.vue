@@ -1,6 +1,9 @@
 <script setup>
 import { computed, watch, ref, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { Smartphone, RefreshCw, X, ChevronDown, Check, AlertCircle } from 'lucide-vue-next';
+
+const router = useRouter();
 
 const props = defineProps({
   show: Boolean,
@@ -12,6 +15,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+
+const goToDetail = (item) => {
+  router.push({ name: 'location-detail', params: { id: item.id } });
+};
+
 
 // Helper to resolve images (Vite specific)
 const getImageUrl = (name) => {
@@ -72,8 +80,9 @@ watch(
         v-for="item in items" 
         :key="item.id" 
         :ref="(el) => setItemRef(el, item.id)"
-        class="mb-2 transition-opacity duration-500"
+        class="mb-2 transition-opacity duration-500 cursor-pointer"
         :class="{'opacity-100': item.id === activeLocationId, 'opacity-40 hover:opacity-100': activeLocationId && item.id !== activeLocationId}"
+        @click="goToDetail(item)"
       >
         <!-- Header Section -->
         <div class="relative overflow-hidden border-y border-white/10">
