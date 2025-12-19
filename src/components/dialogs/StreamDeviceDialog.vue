@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { X, Search, ChevronDown, CheckCircle, AlertCircle, Smartphone } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -8,6 +9,12 @@ const props = defineProps({
     default: false
   }
 });
+
+const router = useRouter();
+
+const goToStreamDevice = () => {
+  router.push({ name: 'stream-device'});
+};
 
 const emit = defineEmits(['close', 'next']);
 
@@ -159,7 +166,7 @@ const handleNext = () => {
         <button @click="$emit('close')" class="px-8 py-2.5 rounded-lg border border-[#910E0E] text-white hover:bg-red-900/20 transition-colors text-sm font-bold bg-transparent">
            Cancel
         </button>
-        <button @click="handleNext" 
+        <button @click="goToStreamDevice" 
                 class="px-8 py-2.5 rounded-lg bg-[#061B65] hover:bg-[#2E58F2] text-white shadow-lg shadow-blue-600/20 transition-all text-sm font-bold border border-[#2E58F2]"
                 :class="{'opacity-50 cursor-not-allowed': selectedDeviceIds.length === 0}"
                 :disabled="selectedDeviceIds.length === 0"

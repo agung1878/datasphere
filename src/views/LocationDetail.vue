@@ -8,6 +8,7 @@ import {
   MoreHorizontal
 } from 'lucide-vue-next';
 import StreamDeviceDialog from '@/components/dialogs/StreamDeviceDialog.vue';
+import TerminalPanel from '@/components/terminal/TerminalPanel.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +19,7 @@ const goBack = () => {
 };
 
 const showStreamDialog = ref(false);
+const showTerminalPanel = ref(false);
 
 const autoUpdate = ref(true);
 // Mock Data for display
@@ -260,10 +262,10 @@ const deviceList = [
                <Radio class="w-4 h-4" />
                Stream Device
             </button>
-            <button class="bg-slate-800 hover:bg-slate-700 border border-white/10 text-gray-300 py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all">
-               <Terminal class="w-4 h-4" />
-               Launch Terminal
-            </button>
+             <button @click="showTerminalPanel = !showTerminalPanel" class="bg-slate-800 hover:bg-slate-700 border border-white/10 text-gray-300 py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all">
+                <Terminal class="w-4 h-4" />
+                Launch Terminal
+             </button>
          </div>
       </div>
     </div>
@@ -345,8 +347,8 @@ const deviceList = [
 
             <div class="col-span-1 text-gray-300">{{ device.whatsapp }}</div>
             <div class="col-span-1 text-gray-300">{{ device.telegram }}</div>
-            <div class="col-span-2 text-gray-400 text-xs">{{ device.update }}</div>
-            <div class="col-span-2 text-gray-400 truncate text-xs">{{ device.notes }}</div>
+            <div class="col-span-2 text-gray-300">{{ device.update }}</div>
+            <div class="col-span-2 text-gray-300 truncate">{{ device.notes }}</div>
             
             <div class="col-span-1 flex justify-end">
                <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
@@ -373,6 +375,12 @@ const deviceList = [
   <StreamDeviceDialog 
     :is-open="showStreamDialog" 
     @close="showStreamDialog = false"
+  />
+
+  <TerminalPanel
+    :is-open="showTerminalPanel"
+    :location-name="locationName"
+    @close="showTerminalPanel = false"
   />
 </template>
 

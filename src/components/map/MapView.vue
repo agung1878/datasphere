@@ -4,27 +4,32 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Wifi } from 'lucide-vue-next';
 import RightPanel from './RightPanel.vue';
+import iconMarkOn from '@/assets/img/icon_mark_on.png';
+import iconMarkGrey from '@/assets/img/icon_mark_grey.png';
 
 // State for Right Panel
 const showPanel = ref(false);
 const selectedLocation = ref(null);
 
-const createCustomIcon = (count) => {
+const createCustomIcon = (count, status) => {
+  const isOnline = status !== 'Offline';
+  const iconSrc = isOnline ? iconMarkOn : iconMarkGrey;
+  
   return L.divIcon({
     className: 'custom-map-marker',
     html: `
       <div class="relative group cursor-pointer">
-        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/50 border-2 border-white/20 z-10 relative transition-transform duration-300 hover:scale-110">
-           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+        <div class="relative z-10 transition-transform duration-300 hover:scale-110">
+           <img src="${iconSrc}" class="w-12 h-12 contain" alt="Marker" />
         </div>
         <div class="absolute -top-1 -right-1 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-slate-700 z-20">
           ${count}
         </div>
-        <div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div>
+        ${isOnline ? '<div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-50 scale-75"></div>' : ''}
       </div>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
+    iconSize: [48, 48],
+    iconAnchor: [24, 24]
   });
 };
 
@@ -112,7 +117,7 @@ onMounted(() => {
 
   // Render Markers
   locations.forEach(loc => {
-    const marker = L.marker([loc.lat, loc.lng], { icon: createCustomIcon(loc.count) }).addTo(map);
+    const marker = L.marker([loc.lat, loc.lng], { icon: createCustomIcon(loc.count, loc.status) }).addTo(map);
     
     // Popup Content matches the selected location data
     const popupContent = `
@@ -166,6 +171,14 @@ onMounted(() => {
       offset: [0, -10]
     });
 
+    marker.on('mouseover', () => {
+      marker.openPopup();
+    });
+
+    marker.on('mouseout', () => {
+      marker.closePopup();
+    });
+
     marker.on('click', () => {
       // Toggle Logic using ID
       if (selectedLocation.value && selectedLocation.value.id === loc.id && showPanel.value) {
@@ -189,6 +202,43 @@ onMounted(() => {
 <template>
   <div class="relative w-full h-full">
     <div ref="mapContainer" class="w-full h-full z-0 absolute inset-0 bg-slate-900"></div>
+
+    <div class="info-server">
+            <div class="w-80 bg-gray-900/50 rounded-2xl shadow-2xl p-6 text-white font-medium">
+                <div class="text-lg mb-4">
+                    Total Server : <span>123</span> Server
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 bg-orange-500 rounded-full shadow-lg shadow-orange-500/50"></div>
+                            <span>Warning</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xl font-bold text-orange-400">8</span> Server
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 bg-red-600 rounded-full shadow-lg shadow-red-600/50"></div>
+                            <span>Offline</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xl font-bold text-red-500">2</span> Server
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 bg-green-500 rounded-full shadow-lg shadow-green-500/50"></div>
+                            <span>Online</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xl font-bold text-green-400">40</span> Server
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     
     <!-- Right Panel Component -->
     <RightPanel 
@@ -227,5 +277,12 @@ onMounted(() => {
   background-position: center;
   background-repeat: no-repeat;
   /* Blend mode to mix with gradient if needed, or just let transparency work */
+}
+
+.info-server {
+    position: absolute;
+    left: 18px;
+    top: 80px;
+    z-index: 1000;
 }
 </style>
