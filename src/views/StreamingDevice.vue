@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
 import { ref } from 'vue';
+import { computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { 
   Power, Volume2, Volume1, Triangle, Circle, Square, Camera, Keyboard, WifiOff 
 } from 'lucide-vue-next';
@@ -15,7 +16,7 @@ const goBack = () => {
 const showWarningShowAllDevicesDialog = ref(false);
 const locationName = "Polda Lampung";
 const streams = ref([
-   { name: 'R9RY30053XZ', status: 'active', url: 'about:blank' },
+   { name: 'R9RY30053XZ', status: 'active', url: 'http://172.15.1.148:8000/#!action=stream&udid=R9CX100ALSR&player=mse&ws=ws%3A%2F%2F172.15.1.148%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CX100ALSR' },
    { name: 'R9RY30053XC', status: 'active', url: 'about:blank' },
    { name: 'R9RY30053XB', status: 'active', url: 'about:blank' },
    { name: 'R9RY30053XN', status: 'active', url: 'about:blank' }, // Placeholder URL
@@ -23,6 +24,46 @@ const streams = ref([
    { name: 'Empty Slot', status: 'empty', url: '' }, 
 ]);
 // const locationId = route.params.id;
+
+const iframeContainers = ref([]);
+// Computed scale for each active stream (one per card)
+const iframeScale = computed(() => {
+  return 1; // Placeholder - actual scaling handled in resize handler below
+});
+
+const updateScales = () => {
+  nextTick(() => {
+    document.querySelectorAll('.stream-scaler').forEach(container => {
+      if (!container) return;
+
+      const parent = container.parentElement; // The flex container (bg-black)
+      if (!parent) return;
+
+      const availableWidth = parent.clientWidth;
+      const availableHeight = parent.clientHeight;
+
+      const deviceWidth = 720;
+      const deviceHeight = 1600;
+
+      const scaleX = availableWidth / deviceWidth;
+      const scaleY = availableHeight / deviceHeight;
+
+      const scale = Math.min(scaleX, scaleY); // Fit without overflow
+
+      container.style.transform = `scale(${scale})`;
+      container.style.transformOrigin = 'top left';
+    });
+  });
+};
+
+onMounted(() => {
+  updateScales();
+  window.addEventListener('resize', updateScales);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScales);
+});
 </script>
 <template>
   <div class="relative h-full w-full bg-slate-900">
@@ -80,7 +121,7 @@ const streams = ref([
     <div class="h-full overflow-y-auto custom-scrollbar p-6">
        <div class="flex flex-wrap justify-center gap-4">
           <div v-for="(stream, index) in streams" :key="index" 
-               class="bg-[#050C25] w-[425px] h-[720px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
+               class="bg-[#050C25] w-[240px] h-[426px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
              
              <!-- Header (Only for Active/Offline) -->
              <div v-if="stream.status !== 'empty'" class="w-full py-3 bg-[#081736] border-b border-blue-900/30 text-center relative shrink-0">
@@ -90,36 +131,24 @@ const streams = ref([
                  </div>
              </div>
              <!-- Content Area -->
-             <div class="flex-1 w-full relative h-full flex overflow-hidden">
+             <div class="flex-1 w-full relative h-full flex overflow-hidden aspect-video">
                 
                 <!-- ACTIVE STATE -->
-                <template v-if="stream.status === 'active'">
-                   <!-- Iframe Container -->
-                   <div class="flex-1 h-full bg-black relative">
-                      <iframe 
-                         :src="stream.url" 
-                         class="w-full h-full border-none"
-                         sandbox="allow-same-origin allow-scripts"
-                      ></iframe>
-                   </div>
-                   
-                   <!-- Side Toolbar -->
-                   <div class="w-12 bg-[#1A202C]/90 backdrop-blur border-l border-white/10 flex flex-col items-center py-4 gap-6 shrink-0 z-10">
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Power"><Power class="w-5 h-5" /></button>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Volume Up"><Volume2 class="w-5 h-5" /></button>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Volume Down"><Volume1 class="w-5 h-5" /></button>
-                      
-                      <div class="w-8 h-px bg-white/10 my-1"></div>
-                      
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Back"><Triangle class="w-5 h-5 rotate-90" /></button>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Home"><Circle class="w-4 h-4" /></button>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Recents"><Square class="w-4 h-4" /></button>
-                      
-                      <div class="w-8 h-px bg-white/10 my-1"></div>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Screenshot"><Camera class="w-5 h-5" /></button>
-                      <button class="text-gray-400 hover:text-white transition-colors" title="Keyboard"><Keyboard class="w-5 h-5" /></button>
-                   </div>
-                </template>
+               <template v-if="stream.status === 'active'">
+                  <div class="flex-1 relative overflow-hidden bg-black flex items-center justify-center">
+                     <div 
+                        class="relative"
+                        style="width: 720px; height: 1600px; transform-origin: top left;"
+                        :style="{ transform: `scale(${iframeScale})` }"
+                     >
+                        <iframe 
+                        :src="stream.url" 
+                        class="absolute inset-0 w-full h-full border-none"
+                        allowfullscreen
+                        ></iframe>
+                     </div>
+                  </div>
+                  </template>
                 <!-- OFFLINE STATE -->
                 <template v-else-if="stream.status === 'offline'">
                    <div class="w-full h-full flex flex-col items-center justify-center bg-black/50 p-6 text-center">
@@ -138,9 +167,9 @@ const streams = ref([
                       </button>
                    </div>
                    <!-- Ghost Toolbar for visual consistency -->
-                   <div class="w-12 bg-[#1A202C]/50 border-l border-white/5 flex flex-col items-center py-4 gap-6 shrink-0 opacity-30 pointer-events-none">
+                   <!-- <div class="w-12 bg-[#1A202C]/50 border-l border-white/5 flex flex-col items-center py-4 gap-6 shrink-0 opacity-30 pointer-events-none">
                       <Power class="w-5 h-5" /><Volume2 class="w-5 h-5" /><Volume1 class="w-5 h-5" />
-                   </div>
+                   </div> -->
                 </template>
                 <!-- EMPTY STATE -->
                 <template v-else>
@@ -189,5 +218,13 @@ const streams = ref([
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
+}
+
+iframe {
+  object-fit: contain; 
+}
+
+.stream-scaler {
+  transition: transform 0.2s ease-out; /* Smooth scaling on resize */
 }
 </style>

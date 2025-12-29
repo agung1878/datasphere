@@ -21,7 +21,14 @@ const emit = defineEmits(['close', 'next']);
 const selectedDeviceIds = ref([]);
 const searchQuery = ref('');
 const filterStatus = ref('All');
+
 const isDropdownOpen = ref(false);
+
+const showPassword = ref(false);
+
+const togglePassword = () => {
+    showPassword.value = !showPassword.value;
+};
 
 const devices = [
   { id: 'R9RY30053XZ', status: 'Issues', update: '21/12/2025 14:00', notes: 'Need Troubleshoot' },
@@ -92,6 +99,10 @@ const handleNext = () => {
           </div>
           <div class="mt-2">
             <input type="password" name="password" id="password" autocomplete="current-password" required="" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6" />
+            <button @click="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2">
+              <Eye v-if="showPassword" class="w-5 h-5 text-gray-500" />
+              <EyeOff v-else class="w-5 h-5 text-gray-500" />
+            </button>
           </div>
         </div>
 
