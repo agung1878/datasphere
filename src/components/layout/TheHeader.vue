@@ -1,5 +1,22 @@
 <script setup>
-import { Bell, Settings, User, Hexagon } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { Bell, Settings, User, LogOut, ChevronDown } from 'lucide-vue-next';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
+const router = useRouter();
+const showProfileMenu = ref(false);
+
+const handleLogout = () => {
+  authStore.logout();
+  showProfileMenu.value = false;
+  router.push({ name: 'login' });
+};
+
+const toggleProfileMenu = () => {
+  showProfileMenu.value = !showProfileMenu.value;
+};
 </script>
 
 <template>
@@ -35,10 +52,35 @@ import { Bell, Settings, User, Hexagon } from 'lucide-vue-next';
 
       <div class="h-6 w-px bg-slate-700 mx-2"></div>
 
-      <button class="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-white/10 transition-all border border-transparent hover:border-white/20">
-        <User class="w-5 h-5 text-gray-300" />
-        <span class="text-sm font-medium tracking-wide">PROFILE</span>
-      </button>
+      <!-- Profile Menu -->
+      <div class="relative">
+        <button 
+          @click="toggleProfileMenu"
+          class="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-white/10 transition-all border border-transparent hover:border-white/20"
+        >
+          <User class="w-5 h-5 text-gray-300" />
+          <span class="text-sm font-medium tracking-wide">{{ authStore.currentUser?.username || 'PROFILE' }}</span>
+          <ChevronDown class="w-4 h-4 text-gray-300" />
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div 
+          v-if="showProfileMenu"
+          class="absolute right-0 mt-2 w-48 bg-slate-800 border border-blue-900/50 rounded-lg shadow-xl overflow-hidden"
+        >
+          <div class="px-4 py-3 border-b border-blue-900/30">
+            <p class="text-sm text-gray-400">Signed in as</p>
+            <p class="text-sm font-medium text-white truncate">{{ authStore.currentUser?.username }}</p>
+          </div>
+          <button 
+            @click="handleLogout"
+            class="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-red-900/20 hover:text-red-300 transition-colors"
+          >
+            <LogOut class="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 </template>

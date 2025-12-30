@@ -1,7 +1,16 @@
 <script setup>
+import { onMounted } from 'vue';
 import MapView from '../components/map/MapView.vue';
 import ServerStatusWidget from '../components/dashboard/ServerStatusWidget.vue';
 import NotificationWidget from '../components/dashboard/NotificationWidget.vue';
+import { useDashboardStore } from '@/stores/dashboard';
+
+const dashboardStore = useDashboardStore();
+
+// Fetch dashboard data when component mounts
+onMounted(async () => {
+  await dashboardStore.fetchDashboard();
+});
 </script>
 
 <template>

@@ -1,63 +1,37 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { X, Search, ChevronDown, CheckCircle, AlertCircle, Smartphone } from 'lucide-vue-next';
-
-const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
-  }
-});
+import { Eye, EyeOff } from 'lucide-vue-next';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
-const goToMainPage = () => {    
-  router.push({ name: 'home'});
-};
-
-const emit = defineEmits(['close', 'next']);
-
-const selectedDeviceIds = ref([]);
-const searchQuery = ref('');
-const filterStatus = ref('All');
-
-const isDropdownOpen = ref(false);
-
+// Form fields
+const email = ref('');
+const password = ref('');
 const showPassword = ref(false);
 
 const togglePassword = () => {
-    showPassword.value = !showPassword.value;
+  showPassword.value = !showPassword.value;
 };
 
-const devices = [
-  { id: 'R9RY30053XZ', status: 'Issues', update: '21/12/2025 14:00', notes: 'Need Troubleshoot' },
-  { id: 'R9RY30054XZ', status: 'Issues', update: '21/12/2025 14:00', notes: 'WhatsApp Outdated' },
-  { id: 'R9RY30055XZ', status: 'Offline', update: '21/12/2025 14:00', notes: 'Telegram Outdated' },
-  { id: 'R9RY30056XZ', status: 'Healthy', update: '21/12/2025 14:00', notes: '...' },
-  { id: 'R9RY30057XZ', status: 'Healthy', update: '21/12/2025 14:00', notes: '...' },
-];
-
-const filteredDevices = computed(() => {
-  return devices.filter(device => {
-    const matchesSearch = device.id.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchesFilter = filterStatus.value === 'All' || device.status === filterStatus.value;
-    return matchesSearch && matchesFilter;
-  });
-});
-
-const selectDevice = (id) => {
-  if (selectedDeviceIds.value.includes(id)) {
-    selectedDeviceIds.value = selectedDeviceIds.value.filter(itemId => itemId !== id);
-  } else {
-    selectedDeviceIds.value.push(id);
+const handleLogin = async (e) => {
+  e.preventDefault();
+  
+  // Basic validation
+  if (!email.value || !password.value) {
+    authStore.error = 'Please enter both email and password';
+    return;
   }
-};
 
-const handleNext = () => {
-  if (selectedDeviceIds.value.length > 0) {
-    emit('next', selectedDeviceIds.value);
+  const result = await authStore.login(email.value, password.value);
+  
+  if (result.success) {
+    // Redirect to home on successful login
+    router.push({ name: 'home' });
   }
+  // Error is already set in the store
 };
 </script>
 
@@ -76,59 +50,86 @@ const handleNext = () => {
 
       <!-- Body -->
       <div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
-      <img class="mx-auto h-16 w-auto" src="@/assets/img/logo_icon.png" alt="Your Company" />
-      <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white">Sign in to your account</h2>
-    </div>
-
-    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-      <form class="space-y-6" action="#" method="POST">
-        <div>
-          <label for="email" class="block text-sm/6 font-medium text-gray-100">Email address</label>
-          <div class="mt-2">
-            <input type="email" name="email" id="email" autocomplete="email" required="" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6" />
-          </div>
+        <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+          <img class="mx-auto h-16 w-auto" src="@/assets/img/logo_icon.png" alt="DataSphere" />
+          <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white">Sign in to your account</h2>
         </div>
 
-        <div>
-          <div class="flex items-center justify-between">
-            <label for="password" class="block text-sm/6 font-medium text-gray-100">Password</label>
-            <div class="text-sm">
-              <a href="#" class="font-semibold text-indigo-400 hover:text-indigo-300">Forgot password?</a>
+        <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+          <form class="space-y-6" @submit="handleLogin">
+            <!-- Error Message -->
+            <div v-if="authStore.error" class="rounded-md bg-red-900/20 border border-red-500/50 p-3">
+              <p class="text-sm text-red-300">{{ authStore.error }}</p>
             </div>
-          </div>
-          <div class="mt-2">
-            <input type="password" name="password" id="password" autocomplete="current-password" required="" class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6" />
-            <button @click="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2">
-              <Eye v-if="showPassword" class="w-5 h-5 text-gray-500" />
-              <EyeOff v-else class="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-        </div>
 
-        <div>
-          <button @click="goToMainPage" class="flex w-full justify-center rounded-md bg-[#061B65] px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-[#2E58F2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Sign in</button>
-        </div>
-      </form>
+            <div>
+              <label for="email" class="block text-sm/6 font-medium text-gray-100">Email address</label>
+              <div class="mt-2">
+                <input 
+                  v-model="email"
+                  type="email" 
+                  name="email" 
+                  id="email" 
+                  autocomplete="email" 
+                  required 
+                  :disabled="authStore.loading"
+                  class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
+              </div>
+            </div>
 
-      <p class="mt-10 text-center text-sm/6 text-gray-400">
-        Create account?
-        {{ ' ' }}
-        <a href="#" class="font-semibold text-indigo-400 hover:text-indigo-300">Register</a>
-      </p>
-    </div>
-  </div>
+            <div>
+              <div class="flex items-center justify-between">
+                <label for="password" class="block text-sm/6 font-medium text-gray-100">Password</label>
+                <div class="text-sm">
+                  <a href="#" class="font-semibold text-indigo-400 hover:text-indigo-300">Forgot password?</a>
+                </div>
+              </div>
+              <div class="mt-2 relative">
+                <input 
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'" 
+                  name="password" 
+                  id="password" 
+                  autocomplete="current-password" 
+                  required 
+                  :disabled="authStore.loading"
+                  class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
+                <button 
+                  type="button"
+                  @click="togglePassword" 
+                  class="absolute right-3 top-1/2 -translate-y-1/2"
+                  :disabled="authStore.loading"
+                >
+                  <Eye v-if="showPassword" class="w-5 h-5 text-gray-500" />
+                  <EyeOff v-else class="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <button 
+                type="submit"
+                :disabled="authStore.loading"
+                class="flex w-full justify-center rounded-md bg-[#061B65] px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-[#2E58F2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <span v-if="authStore.loading">Signing in...</span>
+                <span v-else>Sign in</span>
+              </button>
+            </div>
+          </form>
+
+          <p class="mt-10 text-center text-sm/6 text-gray-400">
+            Create account?
+            {{ ' ' }}
+            <a href="#" class="font-semibold text-indigo-400 hover:text-indigo-300">Register</a>
+          </p>
+        </div>
+      </div>
 
       <!-- Footer -->
       <div class="px-8 py-6 flex justify-center gap-4">
-        <!-- <button @click="$emit('close')" class="px-8 py-2.5 rounded-lg border border-[#910E0E] text-white hover:bg-red-900/20 transition-colors text-sm font-bold bg-transparent">
-           Cancel
-        </button>
-        <button @click="goTo" 
-                class="px-8 py-2.5 rounded-lg bg-[#061B65] hover:bg-[#2E58F2] text-white shadow-lg shadow-blue-600/20 transition-all text-sm font-bold border border-[#2E58F2]"
-        >
-           Login
-        </button> -->
       </div>
 
     </div>

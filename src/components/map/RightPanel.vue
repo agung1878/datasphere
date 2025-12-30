@@ -127,7 +127,7 @@ watch(
               <div>
                 <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">PHONE ACTIVE</div>
                 <div class="text-2xl font-bold text-white">
-                  {{ item.devices.active }}<span class="text-gray-500 text-lg">/{{ item.devices.total }}</span>
+                  {{ item.devices?.active || (item.phone_banks?.filter(pb => pb.status !== 'offline' && pb.status !== 'issue').length || 0) }}<span class="text-gray-500 text-lg">/{{ item.devices?.total || item.phone_banks?.length || 0 }}</span>
                 </div>
               </div>
               <Smartphone class="w-6 h-6 text-white/50" />
@@ -140,7 +140,7 @@ watch(
               <div>
                 <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">AUTO-UPDATE</div>
                 <div class="text-xl font-bold text-white tracking-wide">
-                  {{ item.autoUpdate }}
+                  {{ item.autoUpdate || 'N/A' }}
                 </div>
               </div>
                <RefreshCw class="w-6 h-6 text-white/50" />
