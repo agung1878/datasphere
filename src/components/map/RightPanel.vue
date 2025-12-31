@@ -14,6 +14,8 @@ const props = defineProps({
   activeLocationId: [Number, String]
 });
 
+
+
 const emit = defineEmits(['close']);
 
 const goToDetail = (item) => {
@@ -39,6 +41,38 @@ const getStatusColor = (status) => {
     case 'Issue': return 'text-white border-orange-500/50 shadow-orange-500/10';
     case 'Offline': return 'text-white border-red-500/50 shadow-red-500/10';
     default: return 'text-white border-green-500/50 shadow-green-500/10';
+  }
+};
+
+// Helper to get health check data from phone_banks
+const getHealthCheck = (item) => {
+  // Get the first phone bank's health check data
+  const phoneBank = item.phone_banks?.[0];
+  return phoneBank?.data?.health_check || {};
+};
+
+const getPhoneBankCount = (item) => {
+  const phoneBank = item.phone_banks?.[0];
+  return phoneBank?.data?.count || {};
+};
+
+// Helper to get auto update data from phone_banks
+const getAutoUpdateGrazling = (item) => {
+  const phoneBank = item.phone_banks?.[0];
+
+  if (phoneBank?.data?.auto_update.grazling){
+    return "Enable";
+  } else {
+    return "Disable";
+  }
+};
+
+const getAutoUpdateAutomation = (item) => {
+  const phoneBank = item.phone_banks?.[0];
+  if (phoneBank?.data?.auto_update.automation){
+    return "Enable";
+  } else {
+    return "Disable";
   }
 };
 
@@ -120,17 +154,17 @@ watch(
         </div>
 
         <!-- Dashboard Grid -->
-        <div class="p-4 grid grid-cols-2 gap-4 bg-slate-900/40">
+        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40 mt-2">
           <!-- Phone Active Card -->
           <div class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
             <div class="flex justify-between items-start">
               <div>
                 <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">PHONE ACTIVE</div>
                 <div class="text-2xl font-bold text-white">
-                  {{ item.devices?.active || (item.phone_banks?.filter(pb => pb.status !== 'offline' && pb.status !== 'issue').length || 0) }}<span class="text-gray-500 text-lg">/{{ item.devices?.total || item.phone_banks?.length || 0 }}</span>
+                  {{ getPhoneBankCount(item).healthy || 0 }}<span class="text-gray-500 text-lg">/{{ getPhoneBankCount(item).all || 0 }}</span>
                 </div>
               </div>
-              <Smartphone class="w-6 h-6 text-white/50" />
+              <img src="@/assets/img/ic_outline_phone_android.png" class="min-w-[41px] min-h-[41px] text-white/50" />
             </div>
           </div>
 
@@ -139,17 +173,97 @@ watch(
             <div class="flex justify-between items-start">
               <div>
                 <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">AUTO-UPDATE</div>
-                <div class="text-xl font-bold text-white tracking-wide">
-                  {{ item.autoUpdate || 'N/A' }}
+                <div class="text-md text-white tracking-wide">
+                  {{ 'Grazling: ' + getAutoUpdateGrazling(item) || 'N/A' }} {{ 'Automation: ' + getAutoUpdateAutomation(item) || 'N/A' }}
                 </div>
               </div>
-               <RefreshCw class="w-6 h-6 text-white/50" />
+              <img src="@/assets/img/ic_round_update.png" class="min-w-[41px] min-h-[41px] text-white/50" />
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40">
+          <div class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">Automation Git Health</div>
+              </div>
+              <img 
+                :src="getHealthCheck(item).automation_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')" 
+                class="min-w-[20px] min-h-[20px]" 
+                alt="Status"
+              />
+            </div>
+          </div>
+
+           <div class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">Automation Symlink</div>
+              </div>
+              <img 
+                :src="getHealthCheck(item).automation_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')" 
+                class="min-w-[20px] min-h-[20px]" 
+                alt="Status"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40">
+          <div class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">Grazling Git Health</div>
+              </div>
+              <img 
+                :src="getHealthCheck(item).grazling_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')" 
+                class="min-w-[20px] min-h-[20px]" 
+                alt="Status"
+              />
+            </div>
+          </div>
+
+           <div class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">Grazling Symlink</div>
+              </div>
+              <img 
+                :src="getHealthCheck(item).grazling_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')" 
+                class="min-w-[20px] min-h-[20px]" 
+                alt="Status"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40">
+          <div class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">Cron Status</div>
+              </div>
+              <img 
+                :src="getHealthCheck(item).cron_status ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')" 
+                class="min-w-[20px] min-h-[20px]" 
+                alt="Status"
+              />
+            </div>
+          </div>
+
+           <!-- Empty slot for grid alignment -->
+           <div class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden opacity-0 pointer-events-none">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">-</div>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Status List -->
-        <div class="px-4 pb-6 grid grid-cols-2 gap-2 bg-slate-900/40">
+        <div v-if="false" class="px-4 pb-6 grid grid-cols-2 gap-2 bg-slate-900/40">
           <div v-for="(check, idx) in item.checks" :key="idx" class="flex justify-between items-center p-3 bg-slate-800/30 rounded border border-white/5 hover:border-white/10 transition-colors">
             <span class="text-sm text-gray-300">{{ check.label }}</span>
             <div :class="`w-3 h-3 rounded shadow-inner ${check.status ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'}`"></div>
