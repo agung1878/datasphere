@@ -19,7 +19,11 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const goToDetail = (item) => {
-  router.push({ name: 'location-detail', params: { id: item.id } });
+  router.push({ 
+    name: 'location-detail', 
+    params: { id: item.id },
+    state: { locationData: item } 
+  });
 };
 
 

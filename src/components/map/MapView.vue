@@ -183,36 +183,39 @@ watch(() => dashboardStore.mapLocations, () => {
     <div ref="mapContainer" class="w-full h-full z-0 absolute inset-0 bg-slate-900"></div>
 
     <div class="info-server">
-            <div class="w-80 bg-gray-900/50 rounded-2xl shadow-2xl p-6 text-white font-medium">
-                <div class="text-lg mb-4">
-                    Total Server : <span>{{servers.total}}</span> Server
+            <div class="w-80 bg-[#00000080]/50 rounded-2xl shadow-2xl p-6 text-white font-medium">
+                <div class="text-xs mb-4">
+                    Total Phone Bank : <span>{{servers.total}}</span> Devices
                 </div>
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 bg-orange-500 rounded-full shadow-lg shadow-orange-500/50"></div>
-                            <span>Warning</span>
+                <div class="space-y-1">
+                    <div class="flex items-start justify-between px-8">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full shadow-lg shadow-green-500/50"></div>
+                            <span class="text-xs">Healthy</span>
                         </div>
+                        <span class="text-xs">:</span>
                         <div class="text-right">
-                            <span class="text-xl font-bold text-orange-400">{{ servers.warning }}</span> Server
+                            <span class="text-xs">{{ servers.online + ' Devices'}}</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 bg-red-600 rounded-full shadow-lg shadow-red-600/50"></div>
-                            <span>Offline</span>
+                    <div class="flex items-start justify-between px-8">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-orange-500 rounded-full shadow-lg shadow-orange-500/50"></div>
+                            <span class="text-xs">Issues</span>
                         </div>
+                        <span class="text-xs">:</span>
                         <div class="text-right">
-                            <span class="text-xl font-bold text-red-500">{{ servers.offline }}</span> Server
+                            <span class="text-xs">{{ servers.warning + ' Devices'}}</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 bg-green-500 rounded-full shadow-lg shadow-green-500/50"></div>
-                            <span>Online</span>
+                    <div class="flex items-start justify-between px-8">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-red-600 rounded-full shadow-lg shadow-red-600/50"></div>
+                            <span class="text-xs">Offline</span>
                         </div>
+                        <span class="text-xs">:</span>
                         <div class="text-right">
-                            <span class="text-xl font-bold text-green-400">{{ servers.online }}</span> Server
+                            <span class="text-xs">{{ servers.offline + ' Devices'}}</span>
                         </div>
                     </div>
                 </div>

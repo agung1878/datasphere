@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { 
   ChevronLeft, Home, Bell, Settings, User, 
   CheckCircle, Smartphone, AlertCircle, WifiOff, RefreshCw,
@@ -9,10 +9,14 @@ import {
 } from 'lucide-vue-next';
 import StreamDeviceDialog from '@/components/dialogs/StreamDeviceDialog.vue';
 import TerminalPanel from '@/components/terminal/TerminalPanel.vue';
+import { getPhoneBank, getInstitution } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
 const locationId = route.params.id;
+
+// Location data from API
+const locationData = ref(null);
 
 const goBack = () => {
   router.push('/');
@@ -22,17 +26,128 @@ const showStreamDialog = ref(false);
 const showTerminalPanel = ref(false);
 
 const autoUpdate = ref(true);
-// Mock Data for display
-const locationName = "Polres Lampung Tengah";
-const ipAddress = "11.11.11.88";
+const loading = ref(false);
+const error = ref(null);
 
-const deviceList = [
-   { id: 'R9RY30053XZ', status: 'Issues', internet: 'Offline', whatsapp: '2.23.12.75', telegram: '1.4.2.1', update: '21/12/2025 14:00', notes: 'Need Troubleshoot' },
-   { id: 'R9RY30054XZ', status: 'Issues', internet: 'Workshop08', whatsapp: '3.15.22.88', telegram: '1.4.3.1', update: '22/12/2025 15:00', notes: 'WA Outdated' },
-   { id: 'R9RY30055XZ', status: 'Offline', internet: 'Workshop08', whatsapp: '1.10.10.90', telegram: '1.4.4.1', update: '23/12/2025 16:00', notes: 'No Internet' },
-   { id: 'R9RY30056XZ', status: 'Healthy', internet: 'Workshop08', whatsapp: '4.30.18.65', telegram: '1.4.5.1', update: '24/12/2025 17:00', notes: '...' },
-   { id: 'R9RY30057XZ', status: 'Healthy', internet: 'Workshop08', whatsapp: '5.25.11.12', telegram: '1.4.6.1', update: '25/12/2025 18:00', notes: '...' },
-];
+// Computed properties from location data
+const locationName = computed(() => locationData.value?.name || 'Unknown Location');
+const ipAddress = computed(() => locationData.value?.phone_banks?.[0]?.ip || 'N/A');
+
+// Device list from phone banks
+const deviceList = ref([]);
+
+// Fetch institution data from API
+const fetchInstitutionData = async () => {
+  if (!locationId) return;
+  
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    // Fetch institution data
+    const institutionResponse = await getInstitution(locationId);
+    locationData.value = institutionResponse.data || institutionResponse;
+    
+    console.log("Institution data: ", locationData.value);
+    
+    // Fetch phone bank details using IDs from institution response
+    await fetchPhoneBankDetails();
+  } catch (err) {
+    error.value = err.message || 'Failed to fetch institution data';
+    console.error('Error fetching institution:', err);
+    loading.value = false;
+  }
+};
+
+// Fetch phone bank details
+const fetchPhoneBankDetails = async () => {
+  if (!locationData.value?.phone_banks) {
+    loading.value = false;
+    return;
+  }
+  
+  try {
+    const phoneBankPromises = locationData.value.phone_banks.map(pb => 
+      getPhoneBank(pb.id).catch(err => {
+        console.error(`Failed to fetch phone bank ${pb.id}:`, err);
+        return null;
+      })
+    );
+    
+    const results = await Promise.all(phoneBankPromises);
+    
+    // Extract phones from all phone banks and flatten into device list
+    deviceList.value = results
+      .filter(result => result !== null)
+      .flatMap(result => {
+        const phoneBankData = result.data || result;
+        const phones = phoneBankData.phones || [];
+        
+        // Map each phone to device list format
+        return phones.map(phone => ({
+          id: phone.device_id || 'N/A',
+          status: calculatePhoneStatus(phone),
+          internet: phone.data?.network?.ssid || 'Offline',
+          whatsapp: phone.data?.versioning?.whatsapp || 'N/A',
+          telegram: phone.data?.versioning?.telegram || 'N/A',
+          update: formatDate(phone.updated_at),
+          notes: phone.data?.notes || '...',
+          rawData: phone,
+        }));
+      });
+      
+    console.log('Device list:', deviceList.value);
+  } catch (err) {
+    error.value = err.message || 'Failed to fetch phone bank details';
+    console.error('Error fetching phone banks:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Helper to calculate device status from phone data
+const calculatePhoneStatus = (phone) => {
+  if (!phone.data) return 'Offline';
+  
+  const healthCheck = phone.data.health_check;
+  if (!healthCheck) return 'Offline';
+  
+  // Check if all health checks pass
+  const allHealthy = Object.values(healthCheck).every(val => val === true);
+  if (allHealthy) return 'Healthy';
+  
+  // Check if completely offline
+  const allFailed = Object.values(healthCheck).every(val => val === false);
+  if (allFailed) return 'Offline';
+  
+  return 'Issues';
+};
+
+// Helper to format date
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(',', '');
+};
+
+// Computed stats
+const stats = computed(() => {
+  const healthy = deviceList.value.filter(d => d.status === 'Healthy').length;
+  const issues = deviceList.value.filter(d => d.status === 'Issues').length;
+  const offline = deviceList.value.filter(d => d.status === 'Offline').length;
+  
+  return { healthy, issues, offline, total: deviceList.value.length };
+});
+
+onMounted(() => {
+  fetchInstitutionData();
+});
 
 </script>
 
@@ -277,9 +392,9 @@ const deviceList = [
       <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
          <div class="flex items-center justify-center space-x-4">
             <div class="flex items-center justify-center bg-transparent border border-[#2E58F2] w-[159px] h-[35px] px-4 py-1 solid rounded-lg text-sm font-bold text-white">
-               <span class="text-xm font-bold text-white">
-                  Total Device 30
-               </span>
+                <span class="text-xm font-bold text-white">
+                   Total Device {{ stats.total }}
+                </span>
             </div>
             <div class="flex bg-transparent justify-between rounded-lg p-1 border border-[#2E58F2] w-[312px] h-[35px]">
                <button class="px-4 py-1 rounded text-xs font-bold bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20">All</button>

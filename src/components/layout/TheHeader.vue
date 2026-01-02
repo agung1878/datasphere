@@ -1,12 +1,14 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bell, Settings, User, LogOut, ChevronDown } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
+import NotificationWidget from '@/components/dashboard/NotificationWidget.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
 const showProfileMenu = ref(false);
+const showNotificationMenu = ref(false);
 
 const handleLogout = () => {
   authStore.logout();
@@ -16,7 +18,37 @@ const handleLogout = () => {
 
 const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value;
+  if (showProfileMenu.value) {
+    showNotificationMenu.value = false;
+  }
 };
+
+const toggleNotificationMenu = () => {
+  showNotificationMenu.value = !showNotificationMenu.value;
+  if (showNotificationMenu.value) {
+    showProfileMenu.value = false;
+  }
+};
+
+// Close menus when clicking outside
+const handleClickOutside = (event) => {
+  const target = event.target;
+  if (!target.closest('.notification-menu') && !target.closest('.notification-button')) {
+    showNotificationMenu.value = false;
+  }
+  if (!target.closest('.profile-menu') && !target.closest('.profile-button')) {
+    showProfileMenu.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
 </script>
 
 <template>
@@ -40,11 +72,19 @@ const toggleProfileMenu = () => {
 
     <!-- Actions -->
     <div class="flex items-center space-x-4">
-      <button class="p-2 rounded-full hover:bg-white/10 transition-colors relative group">
-        <Bell class="w-5 h-5 text-gray-300 group-hover:text-white" />
-        <span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-        <span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-      </button>
+      <div class="relative notification-button">
+        <button class="p-2 rounded-full hover:bg-white/10 transition-colors relative group"
+        @click="toggleNotificationMenu">
+          <Bell class="w-5 h-5 text-gray-300 group-hover:text-white" />
+          <span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+          <span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div v-if="showNotificationMenu" class="absolute right-0 mt-2 z-50 notification-menu">
+          <NotificationWidget />
+        </div>
+      </div>
       
       <button class="p-2 rounded-full hover:bg-white/10 transition-colors group">
         <Settings class="w-5 h-5 text-gray-300 group-hover:text-white spin-hover" />
@@ -53,7 +93,7 @@ const toggleProfileMenu = () => {
       <div class="h-6 w-px bg-slate-700 mx-2"></div>
 
       <!-- Profile Menu -->
-      <div class="relative">
+      <div class="relative profile-button">
         <button 
           @click="toggleProfileMenu"
           class="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-white/10 transition-all border border-transparent hover:border-white/20"
@@ -66,7 +106,7 @@ const toggleProfileMenu = () => {
         <!-- Dropdown Menu -->
         <div 
           v-if="showProfileMenu"
-          class="absolute right-0 mt-2 w-48 bg-slate-800 border border-blue-900/50 rounded-lg shadow-xl overflow-hidden"
+          class="absolute right-0 mt-2 w-48 bg-slate-800 border border-blue-900/50 rounded-lg shadow-xl overflow-hidden profile-menu"
         >
           <div class="px-4 py-3 border-b border-blue-900/30">
             <p class="text-sm text-gray-400">Signed in as</p>

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import LocationDetail from '../views/LocationDetail.vue';
 import StreamingDevice from '../views/StreamingDevice.vue';
+import NotificationCenter from '../views/NotificationCenter.vue';
 import LoginView from '../views/LoginView.vue';
 import { useAuthStore } from '../stores/auth';
 
@@ -35,6 +36,12 @@ const routes = [
         name: 'stream-device',
         component: StreamingDevice,
         props: true,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/notifications',
+        name: 'notification-center',
+        component: NotificationCenter,
         meta: { requiresAuth: true }
     }
 ];

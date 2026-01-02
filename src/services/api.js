@@ -75,4 +75,24 @@ export const getDashboard = async () => {
     return response.data;
 };
 
+/**
+ * Get institution details by ID
+ * @param {string} id - Institution ID
+ * @returns {Promise} Response with institution data
+ */
+export const getInstitution = async (id) => {
+    const response = await api.get(`/institutions/${id}`);
+    return response.data;
+};
+
+/**
+ * Get phone bank details by ID
+ * @param {string} id - Phone bank ID
+ * @returns {Promise} Response with phone bank data
+ */
+export const getPhoneBank = async (id) => {
+    const response = await api.get(`/phone-banks/${id}`);
+    return response.data;
+};
+
 export default api;

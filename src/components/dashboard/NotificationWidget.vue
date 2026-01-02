@@ -1,5 +1,8 @@
 <script setup>
-import { RefreshCw } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+import { RefreshCw, Bell } from 'lucide-vue-next';
+
+const router = useRouter();
 
 const notifications = [
   { id: 1, text: 'Polres Singkawang: No Internet Connection', type: 'error' },
@@ -14,33 +17,45 @@ const getBgColor = (type) => {
     default: return 'bg-slate-700 text-white';
   }
 };
+
+const goToNotificationCenter = () => {
+  router.push({ name: 'notification-center' });
+};
 </script>
 
 <template>
-  <div class="glass-panel w-96 overflow-hidden flex flex-col">
+  <div class="w-[400px] rounded-3xl overflow-hidden border-2 border-[#1F2023] bg-[#1F2023] shadow-2xl shadow-blue-500/20">
     <!-- Header -->
-    <div class="px-4 py-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
-      <h3 class="font-semibold text-sm text-white">Notifications</h3>
-      <button class="text-slate-400 hover:text-white transition-colors">
+    <div class="px-5 py-4 border-b border-slate-700/50 flex justify-between items-center bg-gradient-to-r from-slate-800/50 to-slate-900/50">
+      <div class="flex items-center gap-2">
+        <Bell class="w-4 h-4 text-gray-300" />
+        <h3 class="font-semibold text-sm text-white">Notifications</h3>
+      </div>
+      <button class="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded">
         <RefreshCw class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Content -->
-    <div class="p-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+    <div class="p-4 space-y-2 max-h-[280px] overflow-y-auto custom-scrollbar">
       <div 
         v-for="item in notifications" 
         :key="item.id"
-        :class="['p-3 rounded text-xs font-medium shadow-sm transition-transform hover:translate-x-1 cursor-pointer', getBgColor(item.type)]"
+        :class="['p-3 rounded-lg text-xs font-medium shadow-lg transition-all hover:scale-[1.02] cursor-pointer', getBgColor(item.type)]"
       >
         {{ item.text }}
       </div>
     </div>
 
     <!-- Footer -->
-    <div class="px-4 py-3 bg-slate-900/50 border-t border-slate-700/50 flex justify-between items-center text-[10px]">
-      <button class="text-slate-400 hover:text-white underline decoration-slate-600 underline-offset-2">Mark all as read</button>
-      <button class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded shadow-lg shadow-blue-900/20 transition-all">
+    <div class="px-5 py-3 bg-[#1F2023] border-t border-slate-700/50 flex justify-between items-center text-[11px]">
+      <button class="text-slate-400 hover:text-white underline decoration-slate-600 underline-offset-2 transition-colors">
+        Mark all as read
+      </button>
+      <button 
+        @click="goToNotificationCenter"
+        class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg shadow-blue-900/30 transition-all hover:shadow-blue-900/50 font-medium"
+      >
         Go to Notification Center
       </button>
     </div>
