@@ -9,7 +9,8 @@
 body {
   @apply bg-slate-900 text-white m-0;
   font-family: 'Inter', sans-serif;
-  overflow: hidden; /* App-like feel */
+  overflow: hidden;
+  /* App-like feel */
 }
 
 /* Glassmorphism utilities */
@@ -19,5 +20,11 @@ body {
 
 /* Leaflet dark mode overrides */
 .leaflet-container {
-    background: #0f172a;
+  background: #0f172a;
+}
+
+.device-view {
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
 }

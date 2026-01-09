@@ -7,6 +7,10 @@ const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false
+  },
+  devices: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -23,18 +27,22 @@ const searchQuery = ref('');
 const filterStatus = ref('All');
 const isDropdownOpen = ref(false);
 
-const devices = [
-  { id: 'R9RY30053XZ', status: 'Issues', update: '21/12/2025 14:00', notes: 'Need Troubleshoot' },
-  { id: 'R9RY30054XZ', status: 'Issues', update: '21/12/2025 14:00', notes: 'WhatsApp Outdated' },
-  { id: 'R9RY30055XZ', status: 'Offline', update: '21/12/2025 14:00', notes: 'Telegram Outdated' },
-  { id: 'R9RY30056XZ', status: 'Healthy', update: '21/12/2025 14:00', notes: '...' },
-  { id: 'R9RY30057XZ', status: 'Healthy', update: '21/12/2025 14:00', notes: '...' },
-];
-
 const filteredDevices = computed(() => {
-  return devices.filter(device => {
+  return props.devices.filter(device => {
     const matchesSearch = device.id.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchesFilter = filterStatus.value === 'All' || device.status === filterStatus.value;
+    
+    // Map filter status to actual status values
+    let matchesFilter = true;
+    if (filterStatus.value !== 'All') {
+      const statusMap = {
+        'Healthy': 'HEALTHY',
+        'Issues': 'ISSUE',
+        'Offline': 'OFFLINE'
+      };
+      const mappedStatus = statusMap[filterStatus.value];
+      matchesFilter = device.rawData?.status === mappedStatus;
+    }
+    
     return matchesSearch && matchesFilter;
   });
 });
@@ -134,17 +142,17 @@ const handleNext = () => {
                     <div class="col-span-2">
                        <span class="px-3 py-1 rounded-full text-[10px] font-bold border flex items-center w-fit gap-1.5"
                           :class="{
-                             'bg-green-500/10 text-green-400 border-green-500/20': device.status === 'Healthy',
-                             'bg-orange-500/10 text-orange-400 border-orange-500/20': device.status === 'Issues',
-                             'bg-red-500/10 text-red-400 border-red-500/20': device.status === 'Offline'
+                             'bg-green-500/10 text-green-400 border-green-500/20': device.rawData?.status === 'HEALTHY',
+                             'bg-orange-500/10 text-orange-400 border-orange-500/20': device.rawData?.status === 'ISSUE',
+                             'bg-red-500/10 text-red-400 border-red-500/20': device.rawData?.status === 'OFFLINE'
                           }"
                        >
                           <div class="w-1.5 h-1.5 rounded-full" :class="{
-                             'bg-green-500': device.status === 'Healthy',
-                             'bg-orange-500': device.status === 'Issues',
-                             'bg-red-500': device.status === 'Offline'
+                             'bg-green-500': device.rawData?.status === 'HEALTHY',
+                             'bg-orange-500': device.rawData?.status === 'ISSUE',
+                             'bg-red-500': device.rawData?.status === 'OFFLINE'
                           }"></div>
-                          {{ device.status }}
+                          {{ device.rawData?.status || 'N/A' }}
                        </span>
                     </div>
                     

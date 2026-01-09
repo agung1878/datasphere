@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router';
 import { RefreshCw, Bell } from 'lucide-vue-next';
 
 const router = useRouter();
+const emit = defineEmits(['close']);
 
 const notifications = [
   { id: 1, text: 'Polres Singkawang: No Internet Connection', type: 'error' },
@@ -19,6 +20,7 @@ const getBgColor = (type) => {
 };
 
 const goToNotificationCenter = () => {
+  emit('close');
   router.push({ name: 'notification-center' });
 };
 </script>

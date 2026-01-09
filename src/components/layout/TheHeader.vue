@@ -82,7 +82,7 @@ onUnmounted(() => {
 
         <!-- Notification Dropdown -->
         <div v-if="showNotificationMenu" class="absolute right-0 mt-2 z-50 notification-menu">
-          <NotificationWidget />
+          <NotificationWidget @close="showNotificationMenu = false" />
         </div>
       </div>
       

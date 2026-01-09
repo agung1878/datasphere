@@ -86,8 +86,9 @@ const fetchPhoneBankDetails = async () => {
         // Map each phone to device list format
         return phones.map(phone => ({
           id: phone.device_id || 'N/A',
-          status: calculatePhoneStatus(phone),
-          internet: phone.data?.network?.ssid || 'Offline',
+          status: phone.data?.status,
+          internet: phone.data?.wifi_name || 'Offline',
+          connect_internet: phone.data?.is_connected_to_wifi,
           whatsapp: phone.data?.versioning?.whatsapp || 'N/A',
           telegram: phone.data?.versioning?.telegram || 'N/A',
           update: formatDate(phone.updated_at),
@@ -438,17 +439,19 @@ onMounted(() => {
                <span 
                   class="px-2 py-0.5 rounded text-[10px] font-bold border flex items-center w-fit gap-1"
                   :class="{
-                     'bg-green-500/10 text-green-400 border-green-500/20': device.status === 'Healthy',
-                     'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-orange-500/10 shadow-[0_0_10px_rgba(249,115,22,0.1)]': device.status === 'Issues',
-                     'bg-red-500/10 text-red-400 border-red-500/20 shadow-red-500/10': device.status === 'Offline'
+                     'bg-green-500/10 text-green-400 border-green-500/20': device.rawData.statusx === 'HEALTHY',
+                     'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-orange-500/10 shadow-[0_0_10px_rgba(249,115,22,0.1)]': device.rawData.status === 'ISSUE',
+                     'bg-red-500/10 text-red-400 border-red-500/20 shadow-red-500/10': device.rawData.status === 'OFFLINE'
                   }"
                >
                   <div class="w-1.5 h-1.5 rounded-full" :class="{
-                     'bg-green-500': device.status === 'Healthy',
-                     'bg-orange-500': device.status === 'Issues',
-                     'bg-red-500': device.status === 'Offline'
+                     'bg-green-500': device.rawData.status === 'HEALTHY',
+                     'bg-orange-500': device.rawData.status === 'MAINTENANCE',
+                     'bg-orange-500': device.rawData.status === 'ISSUE',
+                     'bg-red-500': device.rawData.status === 'UNHEALTHY',
+                     'bg-red-500': device.rawData.status === 'OFFLINE'
                   }"></div>
-                  {{ device.status }}
+                  {{ device.rawData.status }}
                </span>
             </div>
 
@@ -489,6 +492,7 @@ onMounted(() => {
   
   <StreamDeviceDialog 
     :is-open="showStreamDialog" 
+    :devices="deviceList"
     @close="showStreamDialog = false"
   />
 

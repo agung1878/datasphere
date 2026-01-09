@@ -1,7 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
 import { ref } from 'vue';
-import { computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { 
   Power, Volume2, Volume1, Triangle, Circle, Square, Camera, Keyboard, WifiOff 
 } from 'lucide-vue-next';
@@ -16,54 +15,28 @@ const goBack = () => {
 const showWarningShowAllDevicesDialog = ref(false);
 const locationName = "Polda Lampung";
 const streams = ref([
-   { name: 'R9RY30053XZ', status: 'active', url: 'http://172.15.1.148:8000/#!action=stream&udid=R9CX100ALSR&player=mse&ws=ws%3A%2F%2F172.15.1.148%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CX100ALSR' },
-   { name: 'R9RY30053XC', status: 'active', url: 'about:blank' },
-   { name: 'R9RY30053XB', status: 'active', url: 'about:blank' },
+   { name: 'R9RY30053XZ', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CTB042G9F&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CTB042G9F' },
+   { name: 'R9RY30053XC', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CTC00TRRD&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CTC00TRRD' },
+   { name: 'R9RY30053XB', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CW7018GJW&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CW7018GJW' },
    { name: 'R9RY30053XN', status: 'active', url: 'about:blank' }, // Placeholder URL
    { name: 'R9RY300C8RP', status: 'offline', url: '' },
    { name: 'Empty Slot', status: 'empty', url: '' }, 
 ]);
-// const locationId = route.params.id;
 
-const iframeContainers = ref([]);
-// Computed scale for each active stream (one per card)
-const iframeScale = computed(() => {
-  return 1; // Placeholder - actual scaling handled in resize handler below
-});
+const iframeRef = ref(null)
+function accessIframe() {
+  const iframe = iframeRef.value
+  const doc = iframe.contentWindow.document
 
-const updateScales = () => {
-  nextTick(() => {
-    document.querySelectorAll('.stream-scaler').forEach(container => {
-      if (!container) return;
+  const deviceView = doc.querySelector('.device-view')
+  const stream = doc.querySelector('.stream')
 
-      const parent = container.parentElement; // The flex container (bg-black)
-      if (!parent) return;
+  console.log(deviceView, stream)
+}
 
-      const availableWidth = parent.clientWidth;
-      const availableHeight = parent.clientHeight;
 
-      const deviceWidth = 720;
-      const deviceHeight = 1600;
+console.log("access iframe: ", iframeRef); 
 
-      const scaleX = availableWidth / deviceWidth;
-      const scaleY = availableHeight / deviceHeight;
-
-      const scale = Math.min(scaleX, scaleY); // Fit without overflow
-
-      container.style.transform = `scale(${scale})`;
-      container.style.transformOrigin = 'top left';
-    });
-  });
-};
-
-onMounted(() => {
-  updateScales();
-  window.addEventListener('resize', updateScales);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateScales);
-});
 </script>
 <template>
   <div class="relative h-full w-full bg-slate-900">
@@ -121,7 +94,7 @@ onUnmounted(() => {
     <div class="h-full overflow-y-auto custom-scrollbar p-6">
        <div class="flex flex-wrap justify-center gap-4">
           <div v-for="(stream, index) in streams" :key="index" 
-               class="bg-[#050C25] w-[240px] h-[426px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
+               class="bg-[#050C25] w-[425px] h-[720px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
              
              <!-- Header (Only for Active/Offline) -->
              <div v-if="stream.status !== 'empty'" class="w-full py-3 bg-[#081736] border-b border-blue-900/30 text-center relative shrink-0">
@@ -135,19 +108,11 @@ onUnmounted(() => {
                 
                 <!-- ACTIVE STATE -->
                <template v-if="stream.status === 'active'">
-                  <div class="flex-1 relative overflow-hidden bg-black flex items-center justify-center">
-                     <div 
-                        class="relative"
-                        style="width: 720px; height: 1600px; transform-origin: top left;"
-                        :style="{ transform: `scale(${iframeScale})` }"
-                     >
-                        <iframe 
-                        :src="stream.url" 
-                        class="absolute inset-0 w-full h-full border-none"
-                        allowfullscreen
+                  <iframe 
+                           :src="stream.url" 
+                           class="absolute inset-0 w-full h-full border-none"
+                           allowfullscreen
                         ></iframe>
-                     </div>
-                  </div>
                   </template>
                 <!-- OFFLINE STATE -->
                 <template v-else-if="stream.status === 'offline'">
@@ -221,10 +186,8 @@ onUnmounted(() => {
 }
 
 iframe {
-  object-fit: contain; 
-}
-
-.stream-scaler {
-  transition: transform 0.2s ease-out; /* Smooth scaling on resize */
+  border: none;
+  display: block;
+  pointer-events: auto;
 }
 </style>

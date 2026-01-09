@@ -1,7 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search, ChevronLeft } from 'lucide-vue-next';
+import { useNotificationStore } from '../stores/notification';
+
+const notificationStore = useNotificationStore();
 
 const router = useRouter();
 
@@ -9,73 +12,6 @@ const goBack = () => {
   router.push('/');
 };
 
-// Filter states
-const activeFilter = ref('All');
-const searchQuery = ref('');
-
-// Sample notification data
-const notifications = ref([
-  { id: 1, date: '09/12/2025 20:00', type: 'Update', message: 'WhatsApp update required', device: 'Polres Lampung Tengah', status: 'Solved' },
-  { id: 2, date: '09/13/2025 14:30', type: 'Issues', message: 'Server maintenance scheduled', device: 'Polres Bekasi', status: 'Unread' },
-  { id: 3, date: '09/13/2025 14:30', type: 'Issues', message: 'Server maintenance scheduled', device: 'Polres Bekasi', status: 'Unread' },
-  { id: 4, date: '09/14/2025 09:00', type: 'Issues', message: 'User feedback session', device: 'Polres Jakarta Pusat', status: 'Read' },
-  { id: 5, date: '09/14/2025 09:00', type: 'Issues', message: 'User feedback session', device: 'Polres Jakarta Pusat', status: 'Read' },
-  { id: 6, date: '09/15/2025 11:00', type: 'Info', message: 'Newsletter draft review', device: 'Polres Jawa Barat', status: 'Solved' },
-  { id: 7, date: '09/15/2025 11:00', type: 'Info', message: 'Newsletter draft review', device: 'Polres Jawa Barat', status: 'Solved' },
-  { id: 8, date: '09/16/2025 17:00', type: 'Info', message: 'Data breach investigation', device: 'Polres Mesuji', status: 'Solved' },
-  { id: 9, date: '09/16/2025 17:00', type: 'Info', message: 'Data breach investigation', device: 'Polres Mesuji', status: 'Solved' },
-  { id: 10, date: '09/16/2025 17:00', type: 'Info', message: 'Data breach investigation', device: 'Polres Mesuji', status: 'Solved' },
-  { id: 11, date: '09/16/2025 17:00', type: 'Info', message: 'Data breach investigation', device: 'Polres Mesuji', status: 'Solved' },
-]);
-
-// Filtered notifications
-const filteredNotifications = computed(() => {
-  let filtered = notifications.value;
-  
-  // Filter by type
-  if (activeFilter.value !== 'All') {
-    filtered = filtered.filter(n => {
-      if (activeFilter.value === 'Issue') return n.type === 'Issues';
-      if (activeFilter.value === 'Healthy') return n.status === 'Solved';
-      if (activeFilter.value === 'Offline') return n.status === 'Unread';
-      return true;
-    });
-  }
-  
-  // Filter by search
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(n => 
-      n.message.toLowerCase().includes(query) ||
-      n.device.toLowerCase().includes(query) ||
-      n.type.toLowerCase().includes(query)
-    );
-  }
-  
-  return filtered;
-});
-
-// Pagination
-const currentPage = ref(1);
-const itemsPerPage = 10;
-const totalPages = computed(() => Math.ceil(filteredNotifications.value.length / itemsPerPage));
-
-const paginatedNotifications = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredNotifications.value.slice(start, end);
-});
-
-const setFilter = (filter) => {
-  activeFilter.value = filter;
-  currentPage.value = 1;
-};
-
-const goToPage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-  }
-};
 
 const getTypeColor = (type) => {
   switch(type) {
@@ -94,6 +30,23 @@ const getStatusColor = (status) => {
     default: return 'text-gray-400';
   }
 };
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(',', '');
+};
+
+onMounted(async () => {
+  await notificationStore.fetchNotifications();
+});
+
 </script>
 
 <template>
@@ -143,25 +96,21 @@ const getStatusColor = (status) => {
             <!-- Filter Tabs -->
             <div class="flex bg-transparent rounded-lg p-1 border border-[#2E58F2] h-[35px]">
               <button 
-                @click="setFilter('All')"
                 :class="['px-4 py-1 rounded text-xs font-bold transition-colors', activeFilter === 'All' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white']"
               >
                 All
               </button>
               <button 
-                @click="setFilter('Issue')"
                 :class="['px-4 py-1 rounded text-xs font-bold transition-colors', activeFilter === 'Issue' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white']"
               >
                 Issue
               </button>
               <button 
-                @click="setFilter('Healthy')"
                 :class="['px-4 py-1 rounded text-xs font-bold transition-colors', activeFilter === 'Healthy' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white']"
               >
                 Healthy
               </button>
-              <button 
-                @click="setFilter('Offline')"
+              <button
                 :class="['px-4 py-1 rounded text-xs font-bold transition-colors', activeFilter === 'Offline' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white']"
               >
                 Offline
@@ -172,7 +121,6 @@ const getStatusColor = (status) => {
             <div class="relative group border border-[#2E58F2] w-[329px] h-[35px] rounded-lg">
               <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
               <input 
-                v-model="searchQuery"
                 type="text" 
                 placeholder="Search" 
                 class="bg-transparent w-full h-full border-0 rounded-lg pl-10 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-gray-600 focus:shadow-[0_0_10px_rgba(59,130,246,0.1)]"
@@ -196,18 +144,18 @@ const getStatusColor = (status) => {
           <!-- Table Body -->
           <div class="flex-1 overflow-y-auto custom-scrollbar">
             <div 
-              v-for="notification in paginatedNotifications" 
+              v-for="notification in notificationStore.notifications" 
               :key="notification.id" 
               class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group"
             >
-              <div class="col-span-2 text-gray-300 text-xs">{{ notification.date }}</div>
+              <div class="col-span-2 text-gray-300 text-xs">{{ formatDate(notification.created_at) }}</div>
               <div class="col-span-1">
                 <span :class="['text-xs font-bold', getTypeColor(notification.type)]">
                   {{ notification.type }}
                 </span>
               </div>
               <div class="col-span-4 text-gray-300 text-xs">{{ notification.message }}</div>
-              <div class="col-span-3 text-gray-300 text-xs">{{ notification.device }}</div>
+              <div class="col-span-3 text-gray-300 text-xs">{{ notification.phone_bank_id }}</div>
               <div class="col-span-1">
                 <span :class="['text-xs font-bold', getStatusColor(notification.status)]">
                   {{ notification.status }}

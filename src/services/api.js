@@ -95,4 +95,13 @@ export const getPhoneBank = async (id) => {
     return response.data;
 };
 
+/**
+ * Get notification details
+ * @returns {Promise} Response with notification data
+ */
+export const getNotifications = async () => {
+    const response = await api.get('/notifications');
+    return response.data;
+};
+
 export default api;
