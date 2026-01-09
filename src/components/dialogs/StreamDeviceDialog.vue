@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { X, Search, ChevronDown, CheckCircle, AlertCircle, Smartphone } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -15,12 +15,44 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
+const emit = defineEmits(['close', 'next', 'devicesSelected']);
 
 const goToStreamDevice = () => {
-  router.push({ name: 'stream-device'});
+  // Get full device objects for selected IDs
+  const selectedDevices = props.devices.filter(device => 
+    selectedDeviceIds.value.includes(device.id)
+  );
+  
+  console.log('Selected device IDs:', selectedDeviceIds.value);
+  console.log('Selected devices to pass:', selectedDevices);
+  
+  // Get location ID from current route
+  const locationId = route.params.id;
+  
+  console.log('Location ID:', locationId);
+  console.log('Current route name:', route.name);
+  
+  // Check if we're already on the streaming page
+  if (route.name === 'stream-device') {
+    // Already on streaming page, just emit the devices to update the page
+    emit('devicesSelected', selectedDevices);
+    emit('close');
+  } else {
+    // Navigate to streaming page
+    // Store selected devices in sessionStorage
+    sessionStorage.setItem('selectedDevices', JSON.stringify(selectedDevices));
+    
+    // Navigate with location ID in params
+    router.push({ 
+      name: 'stream-device',
+      params: { id: locationId }
+    });
+    
+    // Close dialog
+    emit('close');
+  }
 };
-
-const emit = defineEmits(['close', 'next']);
 
 const selectedDeviceIds = ref([]);
 const searchQuery = ref('');

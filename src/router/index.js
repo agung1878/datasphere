@@ -32,7 +32,7 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
-        path: '/stream_device',
+        path: '/location/:id/stream_device',
         name: 'stream-device',
         component: StreamingDevice,
         props: true,

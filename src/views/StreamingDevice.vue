@@ -1,27 +1,153 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { 
   Power, Volume2, Volume1, Triangle, Circle, Square, Camera, Keyboard, WifiOff 
 } from 'lucide-vue-next';
 import StreamDeviceDialog from '@/components/dialogs/StreamDeviceDialog.vue';
-import WarningShowAlldevicesDialog from '@/components/dialogs/WarningShowAlldevicesDialog.vue';   
+import WarningShowAlldevicesDialog from '@/components/dialogs/WarningShowAlldevicesDialog.vue';
+import { getPhoneBank, getInstitution } from '@/services/api';
+
 const route = useRoute();
 const router = useRouter();
 const locationId = route.params.id;
+
 const goBack = () => {
   router.push('/location/' + locationId);
 };
+
 const showWarningShowAllDevicesDialog = ref(false);
+const showStreamDialog = ref(false);
 const locationName = "Polda Lampung";
-const streams = ref([
-   { name: 'R9RY30053XZ', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CTB042G9F&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CTB042G9F' },
-   { name: 'R9RY30053XC', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CTC00TRRD&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CTC00TRRD' },
-   { name: 'R9RY30053XB', status: 'active', url: 'http://13.13.13.27:8000/#!action=stream&udid=R9CW7018GJW&player=mse&ws=ws%3A%2F%2F13.13.13.27%3A8000%2F%3Faction%3Dproxy-adb%26remote%3Dtcp%253A8886%26udid%3DR9CW7018GJW' },
-   { name: 'R9RY30053XN', status: 'active', url: 'about:blank' }, // Placeholder URL
-   { name: 'R9RY300C8RP', status: 'offline', url: '' },
-   { name: 'Empty Slot', status: 'empty', url: '' }, 
-]);
+
+// Device list for the dialog
+const deviceList = ref([]);
+const loading = ref(false);
+
+// Fetch device list for the location
+const fetchDeviceList = async () => {
+  if (!locationId) return;
+  
+  loading.value = true;
+  try {
+    const institutionResponse = await getInstitution(locationId);
+    const locationData = institutionResponse.data || institutionResponse;
+    
+    if (locationData?.phone_banks) {
+      const phoneBankPromises = locationData.phone_banks.map(pb => 
+        getPhoneBank(pb.id).catch(err => {
+          console.error(`Failed to fetch phone bank ${pb.id}:`, err);
+          return null;
+        })
+      );
+      
+      const results = await Promise.all(phoneBankPromises);
+      
+      deviceList.value = results
+        .filter(result => result !== null)
+        .flatMap(result => {
+          const phoneBankData = result.data || result;
+          const phones = phoneBankData.phones || [];
+          const phoneBankIp = phoneBankData.ip || 'N/A';
+          
+          return phones.map(phone => ({
+            id: phone.device_id || 'N/A',
+            status: phone.data?.status,
+            internet: phone.data?.wifi_name || 'Offline',
+            connect_internet: phone.data?.is_connected_to_wifi,
+            whatsapp: phone.data?.versioning?.whatsapp || 'N/A',
+            telegram: phone.data?.versioning?.telegram || 'N/A',
+            update: new Date(phone.updated_at).toLocaleString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).replace(',', ''),
+            notes: phone.data?.notes || '...',
+            ip: phoneBankIp,
+            rawData: phone,
+          }));
+        });
+    }
+  } catch (error) {
+    console.error('Error fetching device list:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Function to construct streaming URL from device data
+const buildStreamingUrl = (ip, deviceId) => {
+  if (!ip || ip === 'N/A' || !deviceId || deviceId === 'N/A') {
+    return '';
+  }
+  
+  // Construct the streaming URL with proper encoding
+  const baseUrl = `http://${ip}:8000`;
+  const wsUrl = encodeURIComponent(`ws://${ip}:8000/?action=proxy-adb&remote=tcp%3A8886&udid=${deviceId}`);
+  
+  return `${baseUrl}/#!action=stream&udid=${deviceId}&player=mse&ws=${wsUrl}`;
+};
+
+// Get selected devices from sessionStorage
+const selectedDevices = ref([]);
+
+// Handle devices selected from dialog
+const handleDevicesSelected = (devices) => {
+  console.log('Devices selected from dialog:', devices);
+  selectedDevices.value = devices;
+};
+
+// Clear all selected devices
+const clearSelection = () => {
+  selectedDevices.value = [];
+  console.log('Selection cleared');
+};
+
+onMounted(async () => {
+  // Fetch device list for the dialog
+  await fetchDeviceList();
+  
+  // Load selected devices from sessionStorage
+  const storedDevices = sessionStorage.getItem('selectedDevices');
+  if (storedDevices) {
+    try {
+      selectedDevices.value = JSON.parse(storedDevices);
+      console.log('Loaded devices from sessionStorage:', selectedDevices.value);
+      // Clear after reading to avoid stale data
+      sessionStorage.removeItem('selectedDevices');
+    } catch (error) {
+      console.error('Error parsing stored devices:', error);
+    }
+  }
+});
+
+console.log('Initial selected devices:', selectedDevices.value);
+
+// Build streams from selected devices
+const streams = computed(() => {
+  console.log('Computing streams, selectedDevices.value.length:', selectedDevices.value.length);
+  
+  const deviceStreams = selectedDevices.value.map(device => {
+    const url = buildStreamingUrl(device.ip, device.id);
+    const status = device.rawData?.status === 'OFFLINE' ? 'offline' : 'active';
+    
+    console.log(`Building stream for device ${device.id}:`, { url, status, ip: device.ip });
+    
+    return {
+      name: device.id,
+      status: status,
+      url: url
+    };
+  });
+  
+  // Always add an empty slot at the end for adding more devices
+  deviceStreams.push({ name: 'Empty Slot', status: 'empty', url: '' });
+  
+  console.log('Built streams:', deviceStreams);
+  return deviceStreams;
+});
 
 const iframeRef = ref(null)
 function accessIframe() {
@@ -34,8 +160,8 @@ function accessIframe() {
   console.log(deviceView, stream)
 }
 
-
-console.log("access iframe: ", iframeRef); 
+console.log("access iframe: ", iframeRef);
+console.log("streams value:", streams.value); 
 
 </script>
 <template>
@@ -65,8 +191,6 @@ console.log("access iframe: ", iframeRef);
           <!-- Path -->
           <div class="flex items-center text-sm font-medium tracking-wide ml-4">
             <span class="text-gray-400 cursor-pointer hover:text-white transition-colors" @click="goBack">Home</span>
-            <span class="mx-2 text-gray-600">/</span>
-            <span class="text-gray-300">Polda Lampung</span>
             <span class="mx-2 text-gray-600">/</span>
             <span class="text-gray-300">{{ locationName }}</span>
             <span class="mx-2 text-gray-600">/</span>
@@ -159,6 +283,13 @@ console.log("access iframe: ", iframeRef);
   <WarningShowAlldevicesDialog 
     :is-open="showWarningShowAllDevicesDialog" 
     @close="showWarningShowAllDevicesDialog = false"
+  />
+  
+  <StreamDeviceDialog 
+    :is-open="showStreamDialog"
+    :devices="deviceList"
+    @close="showStreamDialog = false"
+    @devicesSelected="handleDevicesSelected"
   />
   
 </template>

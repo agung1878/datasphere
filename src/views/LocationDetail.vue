@@ -82,6 +82,7 @@ const fetchPhoneBankDetails = async () => {
       .flatMap(result => {
         const phoneBankData = result.data || result;
         const phones = phoneBankData.phones || [];
+        const phoneBankIp = phoneBankData.ip || 'N/A'; // Extract IP from phone bank
         
         // Map each phone to device list format
         return phones.map(phone => ({
@@ -93,6 +94,7 @@ const fetchPhoneBankDetails = async () => {
           telegram: phone.data?.versioning?.telegram || 'N/A',
           update: formatDate(phone.updated_at),
           notes: phone.data?.notes || '...',
+          ip: phoneBankIp, // Add IP to device object
           rawData: phone,
         }));
       });
@@ -182,8 +184,6 @@ onMounted(() => {
           <!-- Path -->
           <div class="flex items-center text-sm font-medium tracking-wide ml-4">
             <span class="text-gray-400 cursor-pointer hover:text-white transition-colors" @click="goBack">Home</span>
-            <span class="mx-2 text-gray-600">/</span>
-            <span class="text-gray-300">Polda Lampung</span>
             <span class="mx-2 text-gray-600">/</span>
             <span class="text-blue-500 font-bold underline decoration-blue-500/30 underline-offset-4">{{ locationName }}</span>
           </div>
