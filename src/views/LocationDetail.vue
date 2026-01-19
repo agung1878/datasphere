@@ -139,14 +139,51 @@ const formatDate = (dateString) => {
   }).replace(',', '');
 };
 
+// Search and filter state
+const searchQuery = ref('');
+const activeFilter = ref('All'); // 'All', 'Healthy', 'Issue', 'Offline'
+
 // Computed stats
 const stats = computed(() => {
-  const healthy = deviceList.value.filter(d => d.status === 'Healthy').length;
-  const issues = deviceList.value.filter(d => d.status === 'Issues').length;
-  const offline = deviceList.value.filter(d => d.status === 'Offline').length;
+  const healthy = deviceList.value.filter(d => d.rawData?.status === 'HEALTHY').length;
+  const issues = deviceList.value.filter(d => d.rawData?.status === 'ISSUE').length;
+  const offline = deviceList.value.filter(d => d.rawData?.status === 'OFFLINE').length;
   
   return { healthy, issues, offline, total: deviceList.value.length };
 });
+
+// Filtered device list based on search and filter
+const filteredDeviceList = computed(() => {
+  let filtered = deviceList.value;
+  
+  // Apply status filter
+  if (activeFilter.value !== 'All') {
+    const statusMap = {
+      'Healthy': 'HEALTHY',
+      'Issue': 'ISSUE',
+      'Offline': 'OFFLINE'
+    };
+    const targetStatus = statusMap[activeFilter.value];
+    filtered = filtered.filter(d => d.rawData?.status === targetStatus);
+  }
+  
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(d => 
+      d.id.toLowerCase().includes(query) ||
+      d.notes.toLowerCase().includes(query) ||
+      d.internet.toLowerCase().includes(query)
+    );
+  }
+  
+  return filtered;
+});
+
+// Set active filter
+const setFilter = (filter) => {
+  activeFilter.value = filter;
+};
 
 onMounted(() => {
   fetchInstitutionData();
@@ -287,7 +324,7 @@ onMounted(() => {
                   class="relative justify-center w-fit mt-[-0.57px] font-bold text-[#2e58f2] text-[27.5px] text-center tracking-[0] leading-[38.5px] whitespace-nowrap flex items-center"
                   style="font-family: 'Sora-Bold', Helvetica;"
                   >
-                  27
+                  {{stats.healthy}}
                   </div>
 
                   <div
@@ -310,7 +347,7 @@ onMounted(() => {
                   class="relative justify-center w-fit mt-[-0.57px] font-bold text-[#2e58f2] text-[27.5px] text-center tracking-[0] leading-[38.5px] whitespace-nowrap flex items-center"
                   style="font-family: 'Sora-Bold', Helvetica;"
                   >
-                  27
+                  {{stats.issues}}
                   </div>
 
                   <div
@@ -334,7 +371,7 @@ onMounted(() => {
                   class="relative justify-center w-fit mt-[-0.57px] font-bold text-[#2e58f2] text-[27.5px] text-center tracking-[0] leading-[38.5px] whitespace-nowrap flex items-center"
                   style="font-family: 'Sora-Bold', Helvetica;"
                   >
-                  27
+                  {{stats.offline}}
                   </div>
 
                   <div
@@ -398,14 +435,34 @@ onMounted(() => {
                 </span>
             </div>
             <div class="flex bg-transparent justify-between rounded-lg p-1 border border-[#2E58F2] w-[312px] h-[35px]">
-               <button class="px-4 py-1 rounded text-xs font-bold bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20">All</button>
-               <button class="px-4 py-1 rounded text-xs font-bold text-gray-400 hover:text-white transition-colors">Issue</button>
-               <button class="px-4 py-1 rounded text-xs font-bold text-gray-400 hover:text-white transition-colors">Healthy</button>
-               <button class="px-4 py-1 rounded text-xs font-bold text-gray-400 hover:text-white transition-colors">Offline</button>
+               <button 
+                 @click="setFilter('All')"
+                 class="px-4 py-1 rounded text-xs font-bold transition-colors"
+                 :class="activeFilter === 'All' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white'"
+               >All</button>
+               <button 
+                 @click="setFilter('Issue')"
+                 class="px-4 py-1 rounded text-xs font-bold transition-colors"
+                 :class="activeFilter === 'Issue' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white'"
+               >Issue</button>
+               <button 
+                 @click="setFilter('Healthy')"
+                 class="px-4 py-1 rounded text-xs font-bold transition-colors"
+                 :class="activeFilter === 'Healthy' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white'"
+               >Healthy</button>
+               <button 
+                 @click="setFilter('Offline')"
+                 class="px-4 py-1 rounded text-xs font-bold transition-colors"
+                 :class="activeFilter === 'Offline' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white'"
+               >Offline</button>
             </div>
             <div class="relative group border border-[#2E58F2] w-[329px] h-[35px] rounded-lg">
                   <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
-                  <input type="text" placeholder="Search" class="bg-transparent w-[329px] h-[35px] border border-[#2E58F2] rounded-lg pl-10 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50 w-64 transition-all placeholder:text-gray-600 focus:shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                  <input 
+                    v-model="searchQuery"
+                    type="text" 
+                    placeholder="Search" 
+                    class="bg-transparent w-[329px] h-[35px] border border-[#2E58F2] rounded-lg pl-10 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50 w-64 transition-all placeholder:text-gray-600 focus:shadow-[0_0_10px_rgba(59,130,246,0.1)]">
             </div>
          </div>
 
@@ -430,8 +487,8 @@ onMounted(() => {
       </div>
 
       <!-- Table Body -->
-      <div class="flex-1 overflow-y-auto custom-scrollbar">
-         <div v-for="(device, index) in deviceList" :key="index" class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
+      <div class="flex-1 overflow-y-auto custom-scrollbar max-h-[400px]">
+         <div v-for="(device, index) in filteredDeviceList" :key="index" class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
             
             <div class="col-span-2 font-mono text-gray-300 font-bold truncate">{{ device.id }}</div>
             
@@ -439,7 +496,7 @@ onMounted(() => {
                <span 
                   class="px-2 py-0.5 rounded text-[10px] font-bold border flex items-center w-fit gap-1"
                   :class="{
-                     'bg-green-500/10 text-green-400 border-green-500/20': device.rawData.statusx === 'HEALTHY',
+                     'bg-green-500/10 text-green-400 border-green': device.rawData.statusx === 'HEALTHY',
                      'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-orange-500/10 shadow-[0_0_10px_rgba(249,115,22,0.1)]': device.rawData.status === 'ISSUE',
                      'bg-red-500/10 text-red-400 border-red-500/20 shadow-red-500/10': device.rawData.status === 'OFFLINE'
                   }"
@@ -476,16 +533,6 @@ onMounted(() => {
          </div>
       </div>
    </div>
-      <!-- Pagination -->
-      <div class="flex justify-center items-center mt-4 space-x-2">
-         <button class="w-8 h-8 rounded border border-blue-500/50 bg-blue-900/30 text-white font-bold text-xs flex items-center justify-center shadow-[0_0_10px_rgba(59,130,246,0.2)]">01</button>
-         <button class="w-8 h-8 rounded text-gray-500 hover:text-white font-bold text-xs flex items-center justify-center transition-colors">02</button>
-         <button class="w-8 h-8 rounded text-gray-500 hover:text-white font-bold text-xs flex items-center justify-center transition-colors">03</button>
-         <span class="text-gray-600 text-xs">...</span>
-         <button class="w-8 h-8 rounded text-gray-500 hover:text-white font-bold text-xs flex items-center justify-center transition-colors">04</button>
-         <button class="w-8 h-8 rounded text-gray-500 hover:text-white font-bold text-xs flex items-center justify-center transition-colors">05</button>
-         <button class="w-8 h-8 rounded text-gray-500 hover:text-white font-bold text-xs flex items-center justify-center transition-colors">06</button>
-      </div>
 
     </div>
   </div>
@@ -499,6 +546,11 @@ onMounted(() => {
   <TerminalPanel
     :is-open="showTerminalPanel"
     :location-name="locationName"
+    :server-config="{
+      host: ipAddress || 'localhost',
+      port: 22,
+      username: 'me'
+    }"
     @close="showTerminalPanel = false"
   />
 </template>

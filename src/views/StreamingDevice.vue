@@ -18,7 +18,8 @@ const goBack = () => {
 
 const showWarningShowAllDevicesDialog = ref(false);
 const showStreamDialog = ref(false);
-const locationName = "Polda Lampung";
+const locationName = ref('');
+const locationData = ref(null);
 
 // Device list for the dialog
 const deviceList = ref([]);
@@ -31,10 +32,11 @@ const fetchDeviceList = async () => {
   loading.value = true;
   try {
     const institutionResponse = await getInstitution(locationId);
-    const locationData = institutionResponse.data || institutionResponse;
-    
-    if (locationData?.phone_banks) {
-      const phoneBankPromises = locationData.phone_banks.map(pb => 
+    locationData.value = institutionResponse.data || institutionResponse;
+    locationName.value = locationData.value?.name || '';
+
+    if (locationData.value?.phone_banks) {
+      const phoneBankPromises = locationData.value.phone_banks.map(pb => 
         getPhoneBank(pb.id).catch(err => {
           console.error(`Failed to fetch phone bank ${pb.id}:`, err);
           return null;
@@ -69,6 +71,11 @@ const fetchDeviceList = async () => {
             rawData: phone,
           }));
         });
+      
+      console.log('Device list loaded:', deviceList.value);
+      
+      // After loading device list, restore selected devices from URL
+      restoreSelectedDevicesFromUrl();
     }
   } catch (error) {
     console.error('Error fetching device list:', error);
@@ -90,13 +97,39 @@ const buildStreamingUrl = (ip, deviceId) => {
   return `${baseUrl}/#!action=stream&udid=${deviceId}&player=mse&ws=${wsUrl}`;
 };
 
-// Get selected devices from sessionStorage
+// Get selected devices from sessionStorage or URL
 const selectedDevices = ref([]);
+
+// Restore selected devices from URL query parameters
+const restoreSelectedDevicesFromUrl = () => {
+  const deviceIds = route.query.devices;
+  
+  if (deviceIds) {
+    // Parse device IDs from URL (comma-separated)
+    const ids = deviceIds.split(',');
+    console.log('Restoring devices from URL:', ids);
+    
+    // Find matching devices from deviceList
+    selectedDevices.value = deviceList.value.filter(device => 
+      ids.includes(device.id)
+    );
+    
+    console.log('Restored selected devices:', selectedDevices.value);
+  }
+};
 
 // Handle devices selected from dialog
 const handleDevicesSelected = (devices) => {
   console.log('Devices selected from dialog:', devices);
   selectedDevices.value = devices;
+  
+  // Update URL with selected device IDs
+  const deviceIds = devices.map(d => d.id).join(',');
+  router.replace({ 
+    name: 'stream-device',
+    params: { id: locationId },
+    query: { devices: deviceIds }
+  });
 };
 
 // Clear all selected devices
@@ -106,15 +139,25 @@ const clearSelection = () => {
 };
 
 onMounted(async () => {
-  // Fetch device list for the dialog
+  // Fetch device list for the dialog (this will also restore from URL)
   await fetchDeviceList();
   
-  // Load selected devices from sessionStorage
+  // Also check sessionStorage for newly navigated selections
   const storedDevices = sessionStorage.getItem('selectedDevices');
   if (storedDevices) {
     try {
-      selectedDevices.value = JSON.parse(storedDevices);
+      const devices = JSON.parse(storedDevices);
+      selectedDevices.value = devices;
       console.log('Loaded devices from sessionStorage:', selectedDevices.value);
+      
+      // Update URL with device IDs
+      const deviceIds = devices.map(d => d.id).join(',');
+      router.replace({ 
+        name: 'stream-device',
+        params: { id: locationId },
+        query: { devices: deviceIds }
+      });
+      
       // Clear after reading to avoid stale data
       sessionStorage.removeItem('selectedDevices');
     } catch (error) {
@@ -192,8 +235,8 @@ console.log("streams value:", streams.value);
           <div class="flex items-center text-sm font-medium tracking-wide ml-4">
             <span class="text-gray-400 cursor-pointer hover:text-white transition-colors" @click="goBack">Home</span>
             <span class="mx-2 text-gray-600">/</span>
-            <span class="text-gray-300">{{ locationName }}</span>
-            <span class="mx-2 text-gray-600">/</span>
+            <span class="text-gray-300">{{ locationData?.name }}</span>
+            <span class="mx-2 text-gray-600">/</span> 
             <span class="text-blue-500 font-bold underline decoration-blue-500/30 underline-offset-4">Streaming Device</span>
           </div>
           <!-- Refresh Action -->

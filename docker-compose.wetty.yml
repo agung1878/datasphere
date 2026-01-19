@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Wetty SSH Terminal Service
+  wetty:
+    image: wettyoss/wetty:latest
+    container_name: datasphere-wetty
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      # Base path for reverse proxy
+      - BASE=/terminal/
+      
+      # Security settings
+      - WETTY_FORCE_SSH=true
+      
+      # Session settings
+      - WETTY_TITLE=DataSphere Terminal
+      
+    # Command line options
+    command: >
+      --base /terminal/
+      --port 3000
+      --host 0.0.0.0
+      --title "DataSphere SSH Terminal"
+      --allow-iframe
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/terminal/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Networks
+    networks:
+      - datasphere-network
+
+  # Nginx Reverse Proxy (Optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: datasphere-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - wetty
+    networks:
+      - datasphere-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  datasphere-network:
+    driver: bridge
+
+volumes:
+  nginx-logs:
