@@ -549,7 +549,7 @@ onMounted(() => {
     :server-config="{
       host: ipAddress || 'localhost',
       port: 22,
-      username: 'me'
+      username: 'imoe'
     }"
     @close="showTerminalPanel = false"
   />

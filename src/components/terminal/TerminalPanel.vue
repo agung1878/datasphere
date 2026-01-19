@@ -1,62 +1,106 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { X, Minus, Square, Maximize2, Terminal as TerminalIcon, Search, Menu } from 'lucide-vue-next';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { X, Maximize2, Terminal as TerminalIcon, Lock, Key, Play } from 'lucide-vue-next';
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import { io } from 'socket.io-client';
+import 'xterm/css/xterm.css';
 
 const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
-  },
-  locationName: {
-    type: String,
-    default: 'Server'
-  },
+  isOpen: { type: Boolean, default: false },
+  locationName: { type: String, default: 'Server' },
   serverConfig: {
     type: Object,
-    default: () => ({
-      host: 'localhost',
-      port: 22,
-      username: 'admin'
-    })
+    default: () => ({ host: '', port: 22, username: '' })
   }
 });
 
 const emit = defineEmits(['close']);
 
-// Wetty configuration
-const wettyBaseUrl = ref('http://localhost:3001/terminal/'); // Wetty server URL
+// State
+const terminalElement = ref(null);
+const isLoading = ref(false);
+const isConnected = ref(false);
+const authError = ref('');
+const passwordInput = ref(''); // Local password state
 
-// Build Wetty URL with SSH parameters
-const wettyUrl = computed(() => {
-  const params = new URLSearchParams({
-    sshhost: props.serverConfig.host,
-    sshport: props.serverConfig.port.toString(),
-    sshuser: props.serverConfig.username
+let term = null;
+let socket = null;
+let fitAddon = null;
+
+const initTerminal = () => {
+  if (term) return;
+  term = new Terminal({
+    cursorBlink: true,
+    fontSize: 13,
+    theme: { background: '#0B0F19' }
   });
-  
-  return `${wettyBaseUrl.value}?${params.toString()}`;
+  fitAddon = new FitAddon();
+  term.loadAddon(fitAddon);
+
+  term.onData((data) => {
+  // Debug: console.log('Sending to backend:', data);
+  if (socket && isConnected.value) {
+    socket.emit('ssh_input', { data });
+  }
+});
+};
+
+const connectSSH = () => {
+  if (!passwordInput.value) {
+    authError.value = 'Password is required';
+    return;
+  }
+
+  isLoading.value = true;
+  authError.value = '';
+
+  // Initialize socket if not exists
+  if (!socket) {
+    socket = io('http://172.15.2.55:8000', { transports: ['websocket'] });
+
+    socket.on('ssh_output', (res) => {
+      isLoading.value = false;
+      isConnected.value = true;
+      term.write(res.data);
+    });
+
+    socket.on('connect_error', () => {
+      isLoading.value = false;
+      authError.value = 'Backend Server Unreachable';
+    });
+  }
+
+  // Send connection request
+  socket.emit('connect_ssh', {
+    host: props.serverConfig.host,
+    username: props.serverConfig.username,
+    password: passwordInput.value
+  });
+};
+
+watch(() => props.isOpen, async (newVal) => {
+  if (newVal) {
+    await nextTick();
+    initTerminal();
+    term.open(terminalElement.value);
+    fitAddon.fit();
+    term.write('\x1b[33mWelcome! Please enter password in the sidebar to begin.\x1b[0m\r\n');
+  } else {
+    cleanup();
+  }
 });
 
-// Terminal state
-const isLoading = ref(true);
-const isFullscreen = ref(false);
-
-// Handle iframe load
-const handleIframeLoad = () => {
-  isLoading.value = false;
-  console.log('Terminal loaded');
+const cleanup = () => {
+  if (socket) socket.disconnect();
+  if (term) term.dispose();
+  term = null;
+  socket = null;
+  isConnected.value = false;
+  passwordInput.value = '';
 };
 
-// Toggle fullscreen
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value;
-};
-
-// Minimize (close)
-const minimize = () => {
-  emit('close');
-};
-
+onBeforeUnmount(cleanup);
 </script>
 
 <template>
@@ -64,130 +108,76 @@ const minimize = () => {
     enter-active-class="transition ease-out duration-300"
     enter-from-class="transform translate-y-full opacity-0"
     enter-to-class="transform translate-y-0 opacity-100"
-    leave-active-class="transition ease-in duration-200"
-    leave-from-class="transform translate-y-0 opacity-100"
-    leave-to-class="transform translate-y-full opacity-0"
   >
-    <div 
-      v-if="isOpen" 
-      class="fixed z-40 flex bg-[#161b22] border border-gray-700 shadow-[0_-5px_30px_rgba(0,0,0,0.5)]"
-      :class="isFullscreen ? 'inset-0' : 'bottom-0 left-0 w-full h-[400px]'"
-    >
-        
-        <!-- Sidebar: Server Settings -->
-        <div class="w-[300px] flex-none bg-[#1e232e] border-r border-gray-700 p-6 flex flex-col">
-            <h3 class="text-white font-bold text-lg mb-1">Server Settings</h3>
-            <p class="text-xs text-gray-500 mb-8">SSH Terminal for {{ locationName }}</p>
+    <div v-if="isOpen" class="fixed inset-x-0 bottom-0 z-40 flex h-[450px] bg-[#161b22] border-t border-gray-700 shadow-2xl">
+      
+      <div class="w-80 flex-none bg-[#1e232e] border-r border-gray-700 p-6 flex flex-col">
+        <div class="flex items-center gap-2 mb-1">
+          <Lock class="w-4 h-4 text-blue-400" />
+          <h3 class="text-white font-bold text-lg">Authentication</h3>
+        </div>
+        <p class="text-xs text-gray-500 mb-6">Connect to {{ serverConfig.host }}</p>
 
-            <div class="space-y-6">
-                <!-- Server Info -->
-                <div class="space-y-3">
-                  <div class="flex justify-between items-center group">
-                      <span class="text-gray-400 text-sm font-medium">Host</span>
-                      <span class="bg-slate-800 text-gray-300 text-xs font-mono px-2 py-1 rounded border border-gray-700">{{ serverConfig.host }}</span>
-                  </div>
-                  
-                  <div class="flex justify-between items-center group">
-                      <span class="text-gray-400 text-sm font-medium">Port</span>
-                      <span class="bg-slate-800 text-gray-300 text-xs font-mono px-2 py-1 rounded border border-gray-700">{{ serverConfig.port }}</span>
-                  </div>
-                  
-                  <div class="flex justify-between items-center group">
-                      <span class="text-gray-400 text-sm font-medium">User</span>
-                      <span class="bg-slate-800 text-gray-300 text-xs font-mono px-2 py-1 rounded border border-gray-700">{{ serverConfig.username }}</span>
-                  </div>
-                </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">User</label>
+            <div class="bg-[#0B0F19] p-2 rounded border border-gray-700 text-gray-300 text-sm font-mono mt-1">
+              {{ serverConfig.username }}
+            </div>
+          </div>
 
-                <div class="border-t border-gray-700 pt-6">
-                  <!-- Connection Status -->
-                  <div class="flex justify-between items-center group">
-                      <span class="text-gray-400 text-sm font-medium">Status</span>
-                      <span 
-                        class="text-xs font-bold px-2 py-1 rounded border flex items-center gap-1.5"
-                        :class="isLoading ? 'bg-yellow-900/40 text-yellow-400 border-yellow-500/30' : 'bg-green-900/40 text-green-400 border-green-500/30'"
-                      >
-                        <div 
-                          class="w-1.5 h-1.5 rounded-full"
-                          :class="isLoading ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'"
-                        ></div>
-                        {{ isLoading ? 'Connecting...' : 'Connected' }}
-                      </span>
-                  </div>
-                </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Password</label>
+            <div class="relative mt-1">
+              <Key class="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+              <input 
+                v-model="passwordInput"
+                type="password" 
+                @keyup.enter="connectSSH"
+                placeholder="••••••••"
+                class="w-full bg-[#0B0F19] text-white text-sm pl-9 pr-3 py-2 rounded border border-gray-700 focus:border-blue-500 focus:outline-none transition-colors"
+                :disabled="isConnected || isLoading"
+              />
             </div>
-            
-            <!-- Info Box -->
-            <div class="mt-auto pt-6 border-t border-gray-700">
-              <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
-                <p class="text-xs text-blue-300 leading-relaxed">
-                  <span class="font-bold">Tip:</span> Use Ctrl+C to copy and Ctrl+V to paste in the terminal.
-                </p>
-              </div>
-            </div>
+          </div>
+
+          <button 
+            @click="connectSSH"
+            :disabled="isConnected || isLoading"
+            class="w-full py-2.5 rounded font-bold text-sm flex items-center justify-center gap-2 transition-all"
+            :class="isConnected ? 'bg-green-600/20 text-green-500 border border-green-500/50' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20'"
+          >
+            <Play v-if="!isLoading && !isConnected" class="w-4 h-4" />
+            <div v-if="isLoading" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            {{ isConnected ? 'Session Active' : (isLoading ? 'Connecting...' : 'Start Terminal') }}
+          </button>
+
+          <p v-if="authError" class="text-xs text-red-400 text-center font-medium">{{ authError }}</p>
         </div>
 
-        <!-- Terminal Window -->
-        <div class="flex-1 flex flex-col bg-[#0B0F19]">
-            <!-- Terminal Header -->
-            <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4 select-none">
-                <div class="flex items-center gap-2 text-gray-400">
-                    <TerminalIcon class="w-4 h-4" />
-                    <span class="text-xs font-bold tracking-wide">SSH Terminal</span>
-                    <span class="text-[#4f5666] mx-2">|</span>
-                    <span class="text-xs text-[#6e7681]">{{ serverConfig.host }}</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                     <button 
-                       @click="toggleFullscreen"
-                       class="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
-                       :title="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
-                     >
-                        <Maximize2 class="w-4 h-4" />
-                    </button>
-                    <div class="w-px h-4 bg-gray-700 mx-1"></div>
-                    <button 
-                      @click="minimize"
-                      class="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
-                      title="Minimize"
-                    >
-                        <Minus class="w-4 h-4" />
-                    </button>
-                     <button 
-                       @click="$emit('close')" 
-                       class="p-1 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 transition-colors"
-                       title="Close"
-                     >
-                        <X class="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-
-            <!-- Loading Overlay -->
-            <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-[#0B0F19] z-10">
-              <div class="text-center">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-                <p class="text-gray-400 text-sm">Connecting to {{ serverConfig.host }}...</p>
-              </div>
-            </div>
-
-            <!-- Wetty iframe -->
-            <iframe 
-              :src="wettyUrl"
-              @load="handleIframeLoad"
-              class="flex-1 w-full h-full border-none bg-[#0B0F19]"
-              allow="clipboard-read; clipboard-write"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-modals"
-            ></iframe>
+        <div class="mt-auto pt-4 border-t border-gray-700">
+           <div class="flex items-center justify-between text-[11px]">
+             <span class="text-gray-500">Status</span>
+             <span :class="isConnected ? 'text-green-500' : 'text-yellow-500'">
+               {{ isConnected ? '● Online' : '○ Offline' }}
+             </span>
+           </div>
         </div>
+      </div>
+
+      <div class="flex-1 flex flex-col bg-[#0B0F19] relative">
+        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4">
+          <div class="flex items-center gap-2 text-gray-400">
+            <TerminalIcon class="w-4 h-4" />
+            <span class="text-xs font-bold uppercase tracking-widest">Console</span>
+          </div>
+          <button @click="emit('close')" class="p-1 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <div ref="terminalElement" class="flex-1 w-full p-2 overflow-hidden"></div>
+      </div>
     </div>
   </transition>
 </template>
-
-<style scoped>
-/* Ensure iframe fills container properly */
-iframe {
-  display: block;
-  border: none;
-}
-</style>
