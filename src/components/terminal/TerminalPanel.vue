@@ -22,7 +22,8 @@ const terminalElement = ref(null);
 const isLoading = ref(false);
 const isConnected = ref(false);
 const authError = ref('');
-const passwordInput = ref(''); // Local password state
+const passwordInput = ref(''); 
+const usernameInput = ref(''); 
 
 let term = null;
 let socket = null;
@@ -47,6 +48,11 @@ const initTerminal = () => {
 };
 
 const connectSSH = () => {
+  if (!usernameInput.value) {
+    authError.value = 'Username is required';
+    return;
+  }
+
   if (!passwordInput.value) {
     authError.value = 'Password is required';
     return;
@@ -74,7 +80,7 @@ const connectSSH = () => {
   // Send connection request
   socket.emit('connect_ssh', {
     host: props.serverConfig.host,
-    username: props.serverConfig.username,
+    username: usernameInput.value,
     password: passwordInput.value
   });
 };
@@ -97,6 +103,7 @@ const cleanup = () => {
   term = null;
   socket = null;
   isConnected.value = false;
+  usernameInput.value = '';
   passwordInput.value = '';
 };
 
@@ -121,8 +128,16 @@ onBeforeUnmount(cleanup);
         <div class="space-y-4">
           <div>
             <label class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">User</label>
-            <div class="bg-[#0B0F19] p-2 rounded border border-gray-700 text-gray-300 text-sm font-mono mt-1">
-              {{ serverConfig.username }}
+            <div class="relative mt-1">
+              <Key class="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+              <input 
+                v-model="usernameInput"
+                type="text" 
+                @keyup.enter="connectSSH"
+                placeholder="Username"
+                class="w-full bg-[#0B0F19] text-white text-sm pl-9 pr-3 py-2 rounded border border-gray-700 focus:border-blue-500 focus:outline-none transition-colors"
+                :disabled="isConnected || isLoading"
+              />
             </div>
           </div>
 
