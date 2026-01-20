@@ -54,7 +54,7 @@ const initializeMap = () => {
   map = L.map(mapContainer.value, {
     zoomControl: false,
     attributionControl: false
-  }).setView([-5.4500, 105.2663], 9); // Centers on Lampung roughly
+  }).setView([-3.550989154516016, 120.3330422389674], 5); // Centers on Lampung roughly
 
   // Dark Matter Tiles
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
