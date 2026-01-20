@@ -185,6 +185,11 @@ const setFilter = (filter) => {
   activeFilter.value = filter;
 };
 
+// Handle manual refresh
+const handleRefresh = async () => {
+  await fetchInstitutionData();
+};
+
 onMounted(() => {
   fetchInstitutionData();
 });
@@ -229,19 +234,29 @@ onMounted(() => {
           <div class="ml-auto flex items-center h-full">
              <div class="h-6 w-px bg-slate-700/50"></div>
              <button
-               class="flex items-center justify-center
+               @click="handleRefresh"
+               :disabled="loading"
+               class="flex items-center justify-center gap-2
                         bg-[url('@/assets/img/bg_refresh.png')]
                         bg-no-repeat bg-[length:100%_100%]
                         min-w-[209px] min-h-[37px]
-                        hover:bg-blue-500"
+                        hover:bg-blue-500 transition-all
+                        disabled:opacity-50 disabled:cursor-not-allowed"
                >
+               <RefreshCw :class="loading ? 'animate-spin' : ''" class="w-4 h-4 text-white" />
                <span class="text-xs font-bold text-white">
-                  Refresh Data
+                  {{ loading ? 'Refreshing...' : 'Refresh Data' }}
                </span>
                </button>
-             <button class="bg-[url('@/assets/img/icon_refresh.png')]
+             <button 
+               @click="handleRefresh"
+               :disabled="loading"
+               class="bg-[url('@/assets/img/icon_refresh.png')]
                         bg-no-repeat bg-[length:100%_100%]
-                        min-w-[40px] min-h-[37px] ml-2 hover:bg-blue-500">
+                        min-w-[40px] min-h-[37px] ml-2 hover:bg-blue-500 transition-all
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+               :class="loading ? 'animate-spin' : ''"
+             >
             </button>
           </div>
        </div>
@@ -261,42 +276,8 @@ onMounted(() => {
             <p class="text-sm text-gray-400">IP Address: <span class="text-gray-200">{{ ipAddress }}</span> <span class="mx-2 text-gray-600">|</span> v1.2.3-Exchange</p>
           </div>
           <div class="flex items-center space-x-6">
-            <div class="flex flex-col items-end">
-                <div class="flex flex-col items-center gap-1">
-                  <!-- Title -->
-                  <h2 class="text-white text-xs ">
-                     Auto Update
-                  </h2>
-
-                  <!-- Toggle -->
-                  <button
-                     class="relative w-[98px] h-[25px] focus:outline-none" @click="autoUpdate = !autoUpdate">
-
-                     <div
-                        class="absolute inset-0 bg-[#081736] border border-[#1e40af]"
-                        style="clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%)"
-                     ></div>
-
-                     <div
-                           class="absolute top-1/2 -translate-y-1/2
-                                 w-[55px] h-[24px]
-                                 skew-x-[-20deg]
-                                 flex items-center justify-center
-                                 transition-all duration-300 ease-out"
-                           :class="autoUpdate
-                           ? 'translate-x-[45px] bg-[#123b8a] border-2 border-[#2b5cff] shadow-[0_0_14px_rgba(43,92,255,0.5)]'
-                           : 'translate-x-[10px] bg-[#3b0a0a] border-2 border-[#ff3b3b] shadow-[0_0_14px_rgba(255,59,59,0.5)]'"
-                        >
-                        <span
-                           class="skew-x-[20deg] text-xs tracking-wide transition-colors duration-300"
-                           :class="autoUpdate ? 'text-[#7CFF4F]' : 'text-[#ff4d4d]'"
-                        >
-                           {{ autoUpdate ? 'ON' : 'OFF' }}
-                        </span>
-                     </div>
-                  </button>
-                  </div>
-            </div>
+            
+            
             <button class="bg-[url(@/assets/img/update_all.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[134px] min-h-[36px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50">
                <!-- <span class="animate-spin-slow"><RefreshCw class="w-4 h-4" /></span>
                Update All -->
@@ -391,21 +372,18 @@ onMounted(() => {
          
          <!-- Tracker List -->
          <div class="flex-1 bg-black/40 rounded-lg mb-4 p-2 border border-white/5 overflow-y-auto max-h-[140px] text-[10px] font-mono space-y-1 custom-scrollbar">
-            <div class="flex gap-2 items-start text-gray-400">
-               <span class="text-gray-500">21/12/2026 14:00</span>
-               <span class="text-red-400">-- Baterai kembung</span>
+            <div v-for="(device, index) in deviceList.slice().sort((a, b) => new Date(b.rawData.updated_at) - new Date(a.rawData.updated_at)).slice(0, 4)" :key="index" class="flex gap-2 items-start">
+               <span class="text-gray-500">{{ device.update }}</span>
+               <span 
+                  :class="{
+                     'text-green-400': device.rawData.status === 'HEALTHY',
+                     'text-orange-400': device.rawData.status === 'ISSUE',
+                     'text-red-400': device.rawData.status === 'OFFLINE'
+                  }"
+               >{{ device.id }} {{ device.notes }}</span>
             </div>
-             <div class="flex gap-2 items-start text-gray-400">
-               <span class="text-gray-500">21/12/2026 16:00</span>
-               <span class="text-green-400">-- Proses pembelian baterai</span>
-            </div>
-             <div class="flex gap-2 items-start text-gray-400">
-               <span class="text-gray-500">22/12/2025 07:00</span>
-               <span class="text-gray-300">-- Sudah dikirim</span>
-            </div>
-             <div class="flex gap-2 items-start text-gray-400">
-               <span class="text-gray-500">22/12/2025 07:03</span>
-               <span class="text-gray-300">-- R9RY30053XZ WhatsApp outdated</span>
+            <div v-if="deviceList.length === 0" class="text-gray-500 text-center py-4">
+               No devices available
             </div>
          </div>
 
@@ -483,7 +461,7 @@ onMounted(() => {
          <div class="col-span-1">Telegram</div>
          <div class="col-span-2">Latest Update <span class="text-blue-500">↓</span></div>
          <div class="col-span-2">Notes</div>
-         <div class="col-span-1 text-right">Action</div>
+         <!-- <div class="col-span-1 text-right">Action</div> -->
       </div>
 
       <!-- Table Body -->
@@ -525,11 +503,11 @@ onMounted(() => {
             <div class="col-span-2 text-gray-300">{{ device.update }}</div>
             <div class="col-span-2 text-gray-300 truncate">{{ device.notes }}</div>
             
-            <div class="col-span-1 flex justify-end">
+            <!-- <div class="col-span-1 flex justify-end">
                <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
                   <Settings class="w-4 h-4" />
                </button>
-            </div>
+            </div> -->
          </div>
       </div>
    </div>
