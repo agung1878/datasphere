@@ -35,9 +35,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 type: institution.type,
                 children: institution.children || [],
                 childrenCount: institution.children?.length || 0,
-                status: calculateStatus(institution.phone_banks),
-                statusLabel: calculateStatusLabel(institution.phone_banks),
-                subtext: calculateSubtext(institution.phone_banks),
+                status: calculateStatus(institution.phone_banks, institution.children),
+                statusLabel: calculateStatusLabel(institution.phone_banks, institution.children),
+                subtext: calculateSubtext(institution.phone_banks, institution.children),
                 devices: {
                     active: countActiveDevices(institution.phone_banks),
                     total: institution.phone_banks?.length || 0
@@ -82,24 +82,53 @@ export const useDashboardStore = defineStore('dashboard', () => {
     });
 
     // --- Helpers ---
-    const calculateStatus = (phoneBanks) => {
-        if (!phoneBanks || phoneBanks.length === 0) return 'Offline';
-        const activeCount = countActiveDevices(phoneBanks);
-        if (activeCount === 0) return 'Offline';
-        if (activeCount < phoneBanks.length) return 'Issue';
-        return 'Healthy';
+    const calculateStatus = (phoneBanks, children) => {
+        // Check if parent has any phone banks that are NOT offline
+        let hasActiveParentPhoneBanks = false;
+        if (phoneBanks && phoneBanks.length > 0) {
+            hasActiveParentPhoneBanks = phoneBanks.some(pb =>
+                pb.status && pb.status.toLowerCase() !== 'offline'
+            );
+        }
+
+        // Check if any children have phone banks that are NOT offline
+        let hasActiveChildrenPhoneBanks = false;
+        if (children && children.length > 0) {
+            hasActiveChildrenPhoneBanks = children.some(child => {
+                if (child.phone_banks && child.phone_banks.length > 0) {
+                    return child.phone_banks.some(pb =>
+                        pb.status && pb.status.toLowerCase() !== 'offline'
+                    );
+                }
+                return false;
+            });
+        }
+
+        console.log('Status check:', {
+            hasActiveParentPhoneBanks,
+            hasActiveChildrenPhoneBanks,
+            parentPhoneBanks: phoneBanks?.map(pb => pb.status) || [],
+            childrenCount: children?.length || 0
+        });
+
+        // If parent or any child has at least one phone bank that's NOT offline, show as online (blue icon)
+        if (hasActiveParentPhoneBanks || hasActiveChildrenPhoneBanks) {
+            return 'Issue'; // Show as online (blue icon)
+        }
+
+        return 'Offline'; // All phone banks are offline or no phone banks exist (grey icon)
     };
 
-    const calculateStatusLabel = (phoneBanks) => {
-        const status = calculateStatus(phoneBanks);
+    const calculateStatusLabel = (phoneBanks, children) => {
+        const status = calculateStatus(phoneBanks, children);
         if (status === 'Offline') return 'Offline';
         if (status === 'Healthy') return 'Healthy';
         const issueCount = (phoneBanks?.length || 0) - countActiveDevices(phoneBanks);
         return `${issueCount} Issue${issueCount > 1 ? 's' : ''}`;
     };
 
-    const calculateSubtext = (phoneBanks) => {
-        const status = calculateStatus(phoneBanks);
+    const calculateSubtext = (phoneBanks, children) => {
+        const status = calculateStatus(phoneBanks, children);
         if (status === 'Offline') return 'Offline';
         if (status === 'Healthy') return 'All Devices Running Properly';
         const issueCount = (phoneBanks?.length || 0) - countActiveDevices(phoneBanks);
@@ -107,8 +136,19 @@ export const useDashboardStore = defineStore('dashboard', () => {
     };
 
     const countActiveDevices = (phoneBanks) => {
-        if (!phoneBanks) return 0;
-        return phoneBanks.filter(pb => pb.status !== 'offline' && pb.status !== 'issue').length;
+        if (!phoneBanks) {
+            console.log('No phoneBanks provided');
+            return 0;
+        }
+
+        console.log('Checking phoneBanks:', phoneBanks);
+
+        // Simply check if phone banks exist - if they exist, they're considered active
+        // The API returns phone_banks array for institutions that have them
+        const activeCount = phoneBanks.length;
+
+        console.log('Active phone banks count:', activeCount);
+        return activeCount;
     };
 
     // --- Actions ---
