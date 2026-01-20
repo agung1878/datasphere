@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { X, Search, ChevronDown, CheckCircle, AlertCircle, Smartphone } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -10,13 +9,7 @@ const props = defineProps({
   }
 });
 
-const router = useRouter();
-
-const goToStreamDevice = () => {
-  router.push({ name: 'stream-device'});
-};
-
-const emit = defineEmits(['close', 'next']);
+const emit = defineEmits(['close', 'confirm']);
 
 const selectedDeviceIds = ref([]);
 const searchQuery = ref('');
@@ -83,7 +76,7 @@ const handleNext = () => {
         <button @click="$emit('close')" class="px-8 py-2.5 rounded-lg border border-[#910E0E] text-white hover:bg-red-900/20 transition-colors text-sm font-bold bg-transparent">
            Cancel
         </button>
-        <button @click="goToStreamDevice" 
+        <button @click="$emit('confirm'); $emit('close')" 
                 class="px-8 py-2.5 rounded-lg bg-[#061B65] hover:bg-[#2E58F2] text-white shadow-lg shadow-blue-600/20 transition-all text-sm font-bold border border-[#2E58F2]"
         >
            Continue
