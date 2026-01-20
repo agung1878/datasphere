@@ -1,28 +1,51 @@
 <script setup>
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { RefreshCw, Bell } from 'lucide-vue-next';
+import { useNotificationStore } from '@/stores/notification';
 
 const router = useRouter();
 const emit = defineEmits(['close']);
+const notificationStore = useNotificationStore();
 
-const notifications = [
-  { id: 1, text: 'Polres Singkawang: No Internet Connection', type: 'error' },
-  { id: 2, text: 'Polres Kalimantan Timur: WhatsApp Update Required', type: 'warning' },
-  { id: 3, text: 'Polres Kalimantan Barat: Telegram Update Required', type: 'warning' },
-];
+// Get last 3 notifications
+const latestNotifications = computed(() => {
+  return notificationStore.notifications.slice(0, 3);
+});
+
+// Map notification type to display type
+const getDisplayType = (notification) => {
+  if (notification.type === 'Issues') return 'error';
+  if (notification.type === 'Update') return 'warning';
+  return 'info';
+};
+
+// Format notification text
+const getNotificationText = (notification) => {
+  return `${notification.phone_bank_id}: ${notification.message}`;
+};
 
 const getBgColor = (type) => {
   switch(type) {
     case 'error': return 'bg-red-900/80 border-l-4 border-red-500 text-red-100';
     case 'warning': return 'bg-yellow-900/80 border-l-4 border-yellow-500 text-yellow-100';
+    case 'info': return 'bg-blue-900/80 border-l-4 border-blue-500 text-blue-100';
     default: return 'bg-slate-700 text-white';
   }
+};
+
+const handleRefresh = async () => {
+  await notificationStore.fetchNotifications();
 };
 
 const goToNotificationCenter = () => {
   emit('close');
   router.push({ name: 'notification-center' });
 };
+
+onMounted(() => {
+  notificationStore.fetchNotifications();
+});
 </script>
 
 <template>
@@ -33,19 +56,37 @@ const goToNotificationCenter = () => {
         <Bell class="w-4 h-4 text-gray-300" />
         <h3 class="font-semibold text-sm text-white">Notifications</h3>
       </div>
-      <button class="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded">
-        <RefreshCw class="w-4 h-4" />
+      <button 
+        @click="handleRefresh" 
+        :disabled="notificationStore.loading"
+        class="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <RefreshCw :class="notificationStore.loading ? 'animate-spin' : ''" class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Content -->
     <div class="p-4 space-y-2 max-h-[280px] overflow-y-auto custom-scrollbar">
+      <!-- Loading State -->
+      <div v-if="notificationStore.loading" class="text-center py-8 text-gray-400 text-xs">
+        <RefreshCw class="w-6 h-6 animate-spin mx-auto mb-2" />
+        Loading notifications...
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="latestNotifications.length === 0" class="text-center py-8 text-gray-400 text-xs">
+        <Bell class="w-6 h-6 mx-auto mb-2 opacity-50" />
+        No notifications available
+      </div>
+
+      <!-- Notifications List -->
       <div 
-        v-for="item in notifications" 
-        :key="item.id"
-        :class="['p-3 rounded-lg text-xs font-medium shadow-lg transition-all hover:scale-[1.02] cursor-pointer', getBgColor(item.type)]"
+        v-else
+        v-for="notification in latestNotifications" 
+        :key="notification.id"
+        :class="['p-3 rounded-lg text-xs font-medium shadow-lg transition-all hover:scale-[1.02] cursor-pointer', getBgColor(getDisplayType(notification))]"
       >
-        {{ item.text }}
+        {{ getNotificationText(notification) }}
       </div>
     </div>
 

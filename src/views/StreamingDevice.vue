@@ -138,6 +138,27 @@ const clearSelection = () => {
   console.log('Selection cleared');
 };
 
+// Handle showing all devices
+const handleShowAllDevices = () => {
+  console.log('Showing all devices, total:', deviceList.value.length);
+  
+  // Select all devices
+  selectedDevices.value = [...deviceList.value];
+  
+  // Update URL with all device IDs
+  const deviceIds = deviceList.value.map(d => d.id).join(',');
+  router.replace({ 
+    name: 'stream-device',
+    params: { id: locationId },
+    query: { devices: deviceIds }
+  });
+  
+  // Close the warning dialog
+  showWarningShowAllDevicesDialog.value = false;
+  
+  console.log('All devices selected:', selectedDevices.value.length);
+};
+
 onMounted(async () => {
   // Fetch device list for the dialog (this will also restore from URL)
   await fetchDeviceList();
@@ -326,6 +347,7 @@ console.log("streams value:", streams.value);
   <WarningShowAlldevicesDialog 
     :is-open="showWarningShowAllDevicesDialog" 
     @close="showWarningShowAllDevicesDialog = false"
+    @confirm="handleShowAllDevices"
   />
   
   <StreamDeviceDialog 
