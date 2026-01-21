@@ -32,6 +32,8 @@ const error = ref(null);
 // Computed properties from location data
 const locationName = computed(() => locationData.value?.name || 'Unknown Location');
 const ipAddress = computed(() => locationData.value?.phone_banks?.[0]?.ip || 'N/A');
+const version = computed(() => locationData.value?.phone_banks?.[0]?.data.server_versioning.grazling || 'N/A');
+const type = computed(() => locationData.value?.phone_banks?.[0]?.type || 'N/A');
 
 // Device list from phone banks
 const deviceList = ref([]);
@@ -273,7 +275,9 @@ onMounted(() => {
         <div class="flex justify-between items-start mb-6 relative z-10">
           <div>
             <h1 class="text-2xl font-bold text-white mb-1">{{ locationName }}</h1>
-            <p class="text-sm text-gray-400">IP Address: <span class="text-gray-200">{{ ipAddress }}</span> <span class="mx-2 text-gray-600">|</span> v1.2.3-Exchange</p>
+            <p class="text-sm text-gray-400">IP Address: <span class="text-gray-200">{{ ipAddress }}</span> 
+              <span class="mx-2 text-gray-600">|</span> {{ version }}
+              <span class="mx-2 text-gray-600">|</span> {{ type }}</p>
           </div>
           <div class="flex items-center space-x-6">
             
