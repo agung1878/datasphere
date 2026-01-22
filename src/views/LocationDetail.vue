@@ -9,6 +9,7 @@ import {
 } from 'lucide-vue-next';
 import StreamDeviceDialog from '@/components/dialogs/StreamDeviceDialog.vue';
 import TerminalPanel from '@/components/terminal/TerminalPanel.vue';
+import UploadApkDialog from '@/components/dialogs/UploadApkDialog.vue';
 import { getPhoneBank, getInstitution } from '@/services/api';
 
 const route = useRoute();
@@ -24,6 +25,7 @@ const goBack = () => {
 
 const showStreamDialog = ref(false);
 const showTerminalPanel = ref(false);
+const showUploadApkDialog = ref(false);
 
 const autoUpdate = ref(true);
 const loading = ref(false);
@@ -192,6 +194,13 @@ const handleRefresh = async () => {
   await fetchInstitutionData();
 };
 
+// Handle APK upload
+const handleApkUpload = (file) => {
+  console.log('APK file uploaded:', file);
+  // TODO: Implement actual upload logic to backend
+  // You can add API call here to upload the file
+};
+
 onMounted(() => {
   fetchInstitutionData();
 });
@@ -282,7 +291,9 @@ onMounted(() => {
           <div class="flex items-center space-x-6">
             
             
-            <button class="bg-[url(@/assets/img/update_all.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[134px] min-h-[36px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50">
+            <button 
+              @click="showUploadApkDialog = true"
+              class="bg-[url(@/assets/img/btn_upload_apk.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[134px] min-h-[36px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50">
                <!-- <span class="animate-spin-slow"><RefreshCw class="w-4 h-4" /></span>
                Update All -->
             </button>
@@ -534,6 +545,12 @@ onMounted(() => {
       username: 'imoe'
     }"
     @close="showTerminalPanel = false"
+  />
+
+  <UploadApkDialog
+    :is-open="showUploadApkDialog"
+    @close="showUploadApkDialog = false"
+    @upload="handleApkUpload"
   />
 </template>
 

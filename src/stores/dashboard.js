@@ -30,7 +30,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 lat: institution.latitude,
                 lng: institution.longitude,
                 ip: institution.ip || 'N/A',
-                count: institution.phone_banks?.length || 0,
+                count: countActivePhoneBanks(institution.phone_banks, institution.children),
                 address: institution.address || 'No address',
                 type: institution.type,
                 children: institution.children || [],
@@ -149,6 +149,31 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
         console.log('Active phone banks count:', activeCount);
         return activeCount;
+    };
+
+    // Count active phone banks (healthy + issue, excluding offline) from parent and children
+    const countActivePhoneBanks = (phoneBanks, children) => {
+        let count = 0;
+
+        // Count parent phone banks that are not offline
+        if (phoneBanks && phoneBanks.length > 0) {
+            count += phoneBanks.filter(pb =>
+                pb.status && pb.status.toLowerCase() !== 'offline'
+            ).length;
+        }
+
+        // Count children phone banks that are not offline
+        if (children && children.length > 0) {
+            children.forEach(child => {
+                if (child.phone_banks && child.phone_banks.length > 0) {
+                    count += child.phone_banks.filter(pb =>
+                        pb.status && pb.status.toLowerCase() !== 'offline'
+                    ).length;
+                }
+            });
+        }
+
+        return count;
     };
 
     // --- Actions ---

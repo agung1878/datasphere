@@ -10,6 +10,10 @@ const router = useRouter();
 const showProfileMenu = ref(false);
 const showNotificationMenu = ref(false);
 
+const goDashboard = () => {
+  router.push('/');
+};
+
 const handleLogout = () => {
   authStore.logout();
   showProfileMenu.value = false;
@@ -55,7 +59,7 @@ onUnmounted(() => {
   <header class="header-bg fixed top-0 left-0 w-full z-50 px-6 py-4 flex items-center justify-between border-b border-indigo-500/30 bg-slate-900/80 backdrop-blur-md shadow-lg shadow-indigo-500/10">
     <!-- Logo Section -->
     <div class="flex items-center space-x-3">
-      <div class="relative">
+      <div class="relative" @click="goDashboard">
         <img src="@/assets/img/logo_icon.png" alt="Logo" class="w-10 h-10">
       </div>
       <h1 class="text-2xl font-bold tracking-widest text-white uppercase font-sans">

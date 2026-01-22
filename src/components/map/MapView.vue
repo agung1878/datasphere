@@ -124,7 +124,7 @@ const renderMarkers = () => {
               <span class="block text-white text-xs tracking-wide truncate max-w-[160px]">${child.name}</span>
               <span class="text-[10px] text-slate-400 font-medium">${childActiveCount}/${childDeviceCount} Devices</span>
             </div>
-            <div class="bg-[#2563eb] px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-blue-400/30 text-white tracking-wider ml-2">${child.ip}</div>
+            <div class="bg-[#2563eb] px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-blue-400/30 text-white tracking-wider ml-2">${child.phone_banks?.[0]?.type}</div>
           </div>
         `;
       }).join('');
@@ -137,8 +137,8 @@ const renderMarkers = () => {
     const popupContent = `
       <div class="popup-custom-content relative w-full h-full text-white p-4 pl-6 font-sans flex flex-col justify-center">
         <div class="flex justify-between items-center">
-             <h2 class="font-extrabold text-xl uppercase tracking-wider text-white truncate max-w-[220px] leading-tight">${loc.name}</h2>
-             <div class="bg-[#1e3a8a] text-white text-[7px] font-bold px-2 py-0.5 rounded border border-blue-400/50 shadow-blue-900/50 min-w-max">PDN 23</div>
+             <h2 class="font-extrabold text-xl uppercase tracking-wider text-white leading-tight">${loc.name}</h2>
+             
         </div>
         <span class="text-blue-300 text-xs">${childrenCount} Polres</span>
         <div class="space-y-1.5 mt-1">
