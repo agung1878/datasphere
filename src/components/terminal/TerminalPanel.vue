@@ -188,20 +188,20 @@ onBeforeUnmount(cleanup);
       </div>
 
       <div class="flex-1 flex flex-col bg-[#0B0F19] relative">
-        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4 shrink-0 relative z-50">
-          <div class="flex items-center gap-2 text-gray-400 min-w-0">
+        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center px-4 shrink-0 relative z-50">
+          <div class="flex items-center gap-2 text-gray-400 min-w-0 pr-8">
             <TerminalIcon class="w-4 h-4 flex-shrink-0" />
             <span class="text-xs font-bold uppercase tracking-widest truncate">Console | Connect to {{ serverConfig.host }}</span>
           </div>
           <button 
             @click="emit('close')" 
-            class="p-1 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 flex-shrink-0 ml-4"
+            class="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 z-50 cursor-pointer"
           >
             <X class="w-4 h-4" />
           </button>
         </div>
 
-        <div ref="terminalElement" class="flex-1 w-full p-2 px-8 overflow-hidden mr-6"></div>
+        <div ref="terminalElement" class="flex-1 w-full p-2 overflow-hidden"></div>
       </div>
     </div>
   </transition>
