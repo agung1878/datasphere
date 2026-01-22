@@ -146,7 +146,7 @@ watch(
 
           <div class="relative z-10 bg-black/70 px-6 py-2">
             <p class="text-xs text-gray-200 tracking-wide">
-              {{ item.subtext }}
+              {{item.phone_banks[0].type}}
             </p>
           </div>
         </div>

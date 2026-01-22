@@ -9,6 +9,7 @@ import 'xterm/css/xterm.css';
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
   locationName: { type: String, default: 'Server' },
+  pbId: { type: String, default: 'Null'},
   serverConfig: {
     type: Object,
     default: () => ({ host: '', port: 22, username: '' })
@@ -48,18 +49,20 @@ const initTerminal = () => {
 };
 
 const connectSSH = () => {
-  if (!usernameInput.value) {
-    authError.value = 'Username is required';
-    return;
-  }
+  // if (!usernameInput.value) {
+  //   authError.value = 'Username is required';
+  //   return;
+  // }
 
-  if (!passwordInput.value) {
-    authError.value = 'Password is required';
-    return;
-  }
+  // if (!passwordInput.value) {
+  //   authError.value = 'Password is required';
+  //   return;
+  // }
 
   isLoading.value = true;
   authError.value = '';
+
+  console.log("pb id connectSSH: ", props.pbId);
 
   // Initialize socket if not exists
   if (!socket) {
@@ -80,18 +83,22 @@ const connectSSH = () => {
   // Send connection request
   socket.emit('connect_ssh', {
     host: props.serverConfig.host,
-    username: usernameInput.value,
-    password: passwordInput.value
+    phone_bank_id: props.pbId
   });
 };
 
 watch(() => props.isOpen, async (newVal) => {
+  console.log("pb idddddddd: ", props.pbId);
   if (newVal) {
     await nextTick();
     initTerminal();
     term.open(terminalElement.value);
     fitAddon.fit();
-    term.write('\x1b[33mWelcome! Please enter password in the sidebar to begin.\x1b[0m\r\n');
+    
+    connectSSH();
+    // if (!isConnected.value && !isLoading.value) {
+    //   connectSSH();
+    // }
   } else {
     cleanup();
   }
@@ -116,9 +123,9 @@ onBeforeUnmount(cleanup);
     enter-from-class="transform translate-y-full opacity-0"
     enter-to-class="transform translate-y-0 opacity-100"
   >
-    <div v-if="isOpen" class="fixed inset-x-0 bottom-0 z-40 flex h-[450px] bg-[#161b22] border-t border-gray-700 shadow-2xl">
+    <div v-if="isOpen" class="fixed inset-x-0 bottom-0 z-40 flex h-[600px] bg-[#161b22] border-t border-gray-700 shadow-2xl">
       
-      <div class="w-80 flex-none bg-[#1e232e] border-r border-gray-700 p-6 flex flex-col">
+      <div class="w-80 flex-none bg-[#1e232e] border-r border-gray-700 p-6 flex flex-col" style="display: none;">
         <div class="flex items-center gap-2 mb-1">
           <Lock class="w-4 h-4 text-blue-400" />
           <h3 class="text-white font-bold text-lg">Authentication</h3>
@@ -139,7 +146,7 @@ onBeforeUnmount(cleanup);
                 :disabled="isConnected || isLoading"
               />
             </div>
-          </div>
+          </div>  
 
           <div>
             <label class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Password</label>
@@ -181,17 +188,20 @@ onBeforeUnmount(cleanup);
       </div>
 
       <div class="flex-1 flex flex-col bg-[#0B0F19] relative">
-        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4">
-          <div class="flex items-center gap-2 text-gray-400">
-            <TerminalIcon class="w-4 h-4" />
-            <span class="text-xs font-bold uppercase tracking-widest">Console</span>
+        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4 shrink-0 relative z-50">
+          <div class="flex items-center gap-2 text-gray-400 min-w-0">
+            <TerminalIcon class="w-4 h-4 flex-shrink-0" />
+            <span class="text-xs font-bold uppercase tracking-widest truncate">Console | Connect to {{ serverConfig.host }}</span>
           </div>
-          <button @click="emit('close')" class="p-1 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400">
+          <button 
+            @click="emit('close')" 
+            class="p-1 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 flex-shrink-0 ml-4"
+          >
             <X class="w-4 h-4" />
           </button>
         </div>
 
-        <div ref="terminalElement" class="flex-1 w-full p-2 overflow-hidden"></div>
+        <div ref="terminalElement" class="flex-1 w-full p-2 px-8 overflow-hidden mr-6"></div>
       </div>
     </div>
   </transition>

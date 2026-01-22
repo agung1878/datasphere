@@ -104,4 +104,15 @@ export const getNotifications = async () => {
     return response.data;
 };
 
+/**
+ * Update APK on a phone bank
+ * @param {string} phoneBankId - Phone bank ID to update
+ * @param {string} type - Application type (WHATSAPP, WHATSAPP_BUSINESS, TELEGRAM)
+ * @returns {Promise} Response with update status
+ */
+export const updateApk = async (phoneBankId, type) => {
+    const response = await api.post(`/phones/${phoneBankId}/update/${type}`);
+    return response.data;
+};
+
 export default api;

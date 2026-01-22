@@ -36,6 +36,9 @@ const locationName = computed(() => locationData.value?.name || 'Unknown Locatio
 const ipAddress = computed(() => locationData.value?.phone_banks?.[0]?.ip || 'N/A');
 const version = computed(() => locationData.value?.phone_banks?.[0]?.data.server_versioning.grazling || 'N/A');
 const type = computed(() => locationData.value?.phone_banks?.[0]?.type || 'N/A');
+const pbId = computed(()=> locationData.value?.phone_banks?.[0]?.id || 'N/A');
+
+console.log("phone_bank_id: ", pbId);
 
 // Device list from phone banks
 const deviceList = ref([]);
@@ -194,11 +197,11 @@ const handleRefresh = async () => {
   await fetchInstitutionData();
 };
 
-// Handle APK upload
-const handleApkUpload = (file) => {
-  console.log('APK file uploaded:', file);
-  // TODO: Implement actual upload logic to backend
-  // You can add API call here to upload the file
+// Handle app update submission
+const handleAppUpdate = (data) => {
+  console.log('Update request:', data);
+  console.log('API endpoint:', `POST /phones/${data.phoneBankId}/update/${data.type}`);
+  // await api.post(`/phones/${data.phoneBankId}/update/${data.type}`);
 };
 
 onMounted(() => {
@@ -259,7 +262,7 @@ onMounted(() => {
                   {{ loading ? 'Refreshing...' : 'Refresh Data' }}
                </span>
                </button>
-             <button 
+             <!-- <button 
                @click="handleRefresh"
                :disabled="loading"
                class="bg-[url('@/assets/img/icon_refresh.png')]
@@ -268,7 +271,7 @@ onMounted(() => {
                         disabled:opacity-50 disabled:cursor-not-allowed"
                :class="loading ? 'animate-spin' : ''"
              >
-            </button>
+            </button> -->
           </div>
        </div>
     </div>
@@ -459,12 +462,12 @@ onMounted(() => {
             </div>
          </div>
 
-         <div class="flex items-center space-x-4 w-full md:w-auto">
+         <!-- <div class="flex items-center space-x-4 w-full md:w-auto">
              <button class="border border-blue-500/30 text-blue-300 hover:bg-blue-900/20 px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors">
                <Download class="w-4 h-4" />
                Export
             </button>
-         </div>
+         </div> -->
       </div>
 
       <!-- Table Header -->
@@ -516,7 +519,7 @@ onMounted(() => {
             <div class="col-span-1 text-gray-300">{{ device.whatsapp }}</div>
             <div class="col-span-1 text-gray-300">{{ device.telegram }}</div>
             <div class="col-span-2 text-gray-300">{{ device.update }}</div>
-            <div class="col-span-2 text-gray-300 truncate">{{ device.notes }}</div>
+            <div class="col-span-2 text-gray-300">{{ device.notes }}</div>
             
             <!-- <div class="col-span-1 flex justify-end">
                <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
@@ -539,18 +542,19 @@ onMounted(() => {
   <TerminalPanel
     :is-open="showTerminalPanel"
     :location-name="locationName"
+    :pb-id="pbId"
     :server-config="{
       host: ipAddress || 'localhost',
-      port: 22,
-      username: 'imoe'
+      port: 22
     }"
     @close="showTerminalPanel = false"
   />
 
   <UploadApkDialog
     :is-open="showUploadApkDialog"
+    :phone-banks="locationData?.phone_banks || []"
     @close="showUploadApkDialog = false"
-    @upload="handleApkUpload"
+    @submit="handleAppUpdate"
   />
 </template>
 
