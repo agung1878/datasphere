@@ -178,9 +178,9 @@ const filteredDeviceList = computed(() => {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(d => 
-      d.id.toLowerCase().includes(query) ||
-      d.notes.toLowerCase().includes(query) ||
-      d.internet.toLowerCase().includes(query)
+      (d.id || '').toString().toLowerCase().includes(query) ||
+      (d.notes || '').toString().toLowerCase().includes(query) ||
+      (d.internet || '').toString().toLowerCase().includes(query)
     );
   }
   
