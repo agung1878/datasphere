@@ -88,6 +88,37 @@ const setItemRef = (el, id) => {
   }
 };
 
+/**
+ * Converts a date into a human-readable relative time string.
+ * @param {Date | number} date - The date object or timestamp to compare.
+ * @param {string} [lang='en'] - The language code (e.g., 'en', 'es', 'fr').
+ * @returns {string} - The formatted relative time string.
+ */
+function getRelativeTimeString(date, lang = 'en') {
+  const timeMs = typeof date === 'number' ? date : date.getTime();
+  const deltaSeconds = Math.round((timeMs - Date.now()) / 1000);
+
+  // Array of time units and their values in seconds
+  const cutoffs = [
+    { type: 'year', value: 31536000 },
+    { type: 'month', value: 2592000 },
+    { type: 'week', value: 604800 },
+    { type: 'day', value: 86400 },
+    { type: 'hour', value: 3600 },
+    { type: 'minute', value: 60 },
+    { type: 'second', value: 1 },
+  ];
+
+  // Find the appropriate unit for the delta
+  const unitObj = cutoffs.find(x => Math.abs(deltaSeconds) >= x.value) || cutoffs[cutoffs.length - 1];
+
+  // Create the Intl formatter
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+
+  // Calculate the value for the unit and format it
+  return rtf.format(Math.floor(deltaSeconds / unitObj.value), unitObj.type);
+}
+
 // Scroll to active item when it changes or panel opens
 watch(
   [() => props.activeLocationId, () => props.show],
@@ -133,10 +164,16 @@ watch(
             <div class="relative z-10 px-6 pt-6 pb-3">
               <div class="flex justify-between items-center">
                 <div class="flex flex-row gap-1 items-center justify-between w-full">
-                  <div class="text-lg font-bold text-white flex items-center gap-2">
-                    <span>{{ item.name }}</span>
-                  </div>
-                  <div v-if="pb.status" :class="getBadgeStyles(pb.status)">
+                <div class="flex flex-col">
+                    <div class="text-lg font-bold text-white flex items-center gap-2">
+                      <span>{{ item.name }}</span>
+                    </div>
+                    <small>{{ item.phone_banks[0]?.latest_ping ? getRelativeTimeString(new
+                    Date(item.phone_banks[0]?.latest_ping),
+                    'en') : "-" }}</small>
+                </div>
+
+                <div v-if="pb.status" :class="getBadgeStyles(pb.status)">
                     {{ pb.status }}
                   </div>
                 </div>
