@@ -29,7 +29,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 name: institution.name,
                 lat: institution.latitude,
                 lng: institution.longitude,
-                ip: institution.ip || 'N/A',
                 count: countActivePhoneBanks(institution.phone_banks, institution.children),
                 address: institution.address || 'No address',
                 type: institution.type,
@@ -44,7 +43,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 },
                 autoUpdate: 'Enable',
                 checks: [],
-                phone_banks: institution.phone_banks || []
+                phone_banks: institution.phone_banks || [],
             }));
     });
 
@@ -61,12 +60,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
                 // 1. Filter the children first
                 const filteredChildren = loc.children.filter(child =>
                     child.name.toLowerCase().includes(query) ||
-                    (child.ip && child.ip.toLowerCase().includes(query))
+                    (child.phone_banks && child.phone_banks.some(pb => pb.ip && pb.ip.toLowerCase().includes(query)))
                 );
 
                 // 2. Check if parent matches
                 const parentMatches = loc.name.toLowerCase().includes(query) ||
-                    (loc.ip && loc.ip.toLowerCase().includes(query));
+                    (loc.phone_banks && loc.phone_banks.some(pb => pb.ip && pb.ip.toLowerCase().includes(query)));
 
                 // 3. If parent matches, show all children (or you can keep filteredChildren)
                 // If parent doesn't match but children do, show only matching children
