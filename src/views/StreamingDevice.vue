@@ -282,7 +282,7 @@ console.log("streams value:", streams.value);
     <div class="h-full overflow-y-auto custom-scrollbar p-6">
        <div class="flex flex-wrap justify-center gap-4">
           <div v-for="(stream, index) in streams" :key="index" 
-               class="bg-[#050C25] w-[425px] h-[720px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
+               class="bg-[#050C25] w-[425px] h-[760px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
              
              <!-- Header (Only for Active/Offline) -->
              <div v-if="stream.status !== 'empty'" class="w-full py-3 bg-[#081736] border-b border-blue-900/30 text-center relative shrink-0">

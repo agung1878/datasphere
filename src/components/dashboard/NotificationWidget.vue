@@ -22,7 +22,7 @@ const getDisplayType = (notification) => {
 
 // Format notification text
 const getNotificationText = (notification) => {
-  return `${notification.phone_bank_id}: ${notification.message}`;
+  return `${notification.phone_bank_name}: ${notification.message}`;
 };
 
 const getBgColor = (type) => {

@@ -264,8 +264,8 @@ watch(() => dashboardStore.filteredMapLocations, () => {
       </div>
     </Transition>
 
-    <RightPanel :show="showPanel" :activeLocationId="selectedLocation?.children?.[0]?.id"
-      :items="selectedLocation?.children || []" @close="showPanel = false" />
+    <RightPanel :show="showPanel" :activeLocationId="selectedLocation?.id"
+      :items="selectedLocation ? [selectedLocation, ...(selectedLocation.children || [])] : []" @close="showPanel = false" />
   </div>
 </template>
 

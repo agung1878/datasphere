@@ -155,7 +155,7 @@ onMounted(async () => {
                 </span>
               </div>
               <div class="col-span-4 text-gray-300 text-xs">{{ notification.message }}</div>
-              <div class="col-span-3 text-gray-300 text-xs">{{ notification.phone_bank_id }}</div>
+              <div class="col-span-3 text-gray-300 text-xs">{{ notification.device_id }}</div>
               <div class="col-span-1">
                 <span :class="['text-xs font-bold', getStatusColor(notification.status)]">
                   {{ notification.status }}

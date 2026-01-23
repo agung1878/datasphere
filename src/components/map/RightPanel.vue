@@ -64,24 +64,20 @@ const getBadgeStyles = (status) => {
 };
 
 // Helper to get health check data from phone_banks
-const getHealthCheck = (item) => {
-  const phoneBank = item.phone_banks?.[0];
+const getHealthCheck = (phoneBank) => {
   return phoneBank?.data?.health_check || {};
 };
 
-const getPhoneBankCount = (item) => {
-  const phoneBank = item.phone_banks?.[0];
+const getPhoneBankCount = (phoneBank) => {
   return phoneBank?.data?.count || {};
 };
 
 // Helper to get auto update data from phone_banks
-const getAutoUpdateGrazling = (item) => {
-  const phoneBank = item.phone_banks?.[0];
+const getAutoUpdateGrazling = (phoneBank) => {
   return phoneBank?.data?.auto_update?.grazling ? "Enable" : "Disable";
 };
 
-const getAutoUpdateAutomation = (item) => {
-  const phoneBank = item.phone_banks?.[0];
+const getAutoUpdateAutomation = (phoneBank) => {
   return phoneBank?.data?.auto_update?.automation ? "Enable" : "Disable";
 };
 
@@ -116,113 +112,123 @@ watch(
 
     <div class="overflow-y-auto flex-1 custom-scrollbar pb-10">
       <div v-for="item in items" :key="item.id" :ref="(el) => setItemRef(el, item.id)"
-        class="mb-2 transition-opacity duration-500 cursor-pointer"
+        class="mb-6 transition-opacity duration-500 cursor-pointer"
         :class="{ 'opacity-100': item.id === activeLocationId, 'opacity-40 hover:opacity-100': activeLocationId && item.id !== activeLocationId }"
         @click="goToDetail(item)">
 
-        <div class="relative overflow-hidden border-y border-white/10">
-          <div class="absolute inset-0">
-            <img :src="getHeaderBg(item.status)" class="w-full h-full object-cover" alt="" />
-          </div>
-
-          <div class="relative z-10 px-6 pt-6 pb-3">
-            <div class="flex justify-between items-center">
-              <div class="flex flex-row gap-1 items-center justify-between w-full">
-                <h2 class="text-2xl font-bold text-white tracking-wide">
-                  {{ item.name }}
-                </h2>
-                <div v-if="item?.phone_banks?.[0]?.status" :class="getBadgeStyles(item.phone_banks[0].status)">
-                  {{ item.phone_banks[0].status }}
-                </div>
-              </div>
-
-              <div
-                class="flex items-center gap-1 text-sm font-medium text-white bg-black/20 px-3 py-1 rounded-md border border-white/5">
-                {{ item.statusLabel }}
-                <ChevronDown class="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-
-          <div class="relative z-10 bg-black/70 px-6 py-2">
-            <p class="text-xs text-gray-200 tracking-wide">
-              {{item.phone_banks[0].type}}
-            </p>
-          </div>
+        <!-- Debug/Fallback: Show if no phone banks -->
+        <div v-if="!item.phone_banks || item.phone_banks.length === 0" class="p-4 bg-slate-800/50 rounded text-center text-gray-400">
+          <h3 class="font-bold text-white">{{ item.name }}</h3>
+          <p class="text-xs">No Phone Banks Data Available</p>
         </div>
 
-        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40 mt-2">
-          <div
-            class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">PHONE ACTIVE</div>
-                <div class="text-2xl font-bold text-white">
-                  {{ getPhoneBankCount(item).healthy || 0 }}<span class="text-gray-500 text-lg">/{{
-                    getPhoneBankCount(item).all || 0 }}</span>
-                </div>
-              </div>
-              <img src="@/assets/img/ic_outline_phone_android.png" class="min-w-[41px] min-h-[41px] opacity-50" />
+        <!-- Iterate through all phone banks for this location -->
+        <div v-for="(pb, index) in item.phone_banks" :key="pb.id" class="mb-4 last:mb-0">
+          
+          <div class="relative overflow-hidden border-y border-white/10">
+            <div class="absolute inset-0">
+              <img :src="getHeaderBg(pb.status)" class="w-full h-full object-cover" alt="" />
             </div>
-          </div>
 
-          <div
-            class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">AUTO-UPDATE</div>
-                <div class="text-[11px] text-white tracking-wide leading-tight">
-                  <div>Grazling: <span class="text-blue-400 font-bold">{{ getAutoUpdateGrazling(item) }}</span></div>
-                  <div>Automation: <span class="text-blue-400 font-bold">{{ getAutoUpdateAutomation(item) }}</span>
+            <div class="relative z-10 px-6 pt-6 pb-3">
+              <div class="flex justify-between items-center">
+                <div class="flex flex-row gap-1 items-center justify-between w-full">
+                  <div class="text-lg font-bold text-white flex items-center gap-2">
+                    <span>{{ item.name }}</span>
+                  </div>
+                  <div v-if="pb.status" :class="getBadgeStyles(pb.status)">
+                    {{ pb.status }}
                   </div>
                 </div>
               </div>
-              <img src="@/assets/img/ic_round_update.png" class="min-w-[41px] min-h-[41px] opacity-50" />
             </div>
-          </div>
-        </div>
 
-        <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40">
-          <div
-            class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Automation Git</span>
-              <img
-                :src="getHealthCheck(item).automation_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
-                class="w-5 h-5" />
+            <div class="relative z-10 bg-black/70 px-6 py-2 bg-blue">
+              <p class="text-xs text-gray-200 tracking-wide uppercase font-bold">
+                {{pb.type}} | {{pb.ip}}
+              </p>
+            </div>
+
+            <!-- <div class="relative z-10 bg-black/70 px-6 py-2">
+              <p class="text-xs text-gray-200 tracking-wide">
+                {{pb.type}}
+              </p>
+            </div> -->
+          </div>
+
+          <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40 mt-2">
+            <div
+              class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">PHONE ACTIVE</div>
+                  <div class="text-2xl font-bold text-white">
+                    {{ getPhoneBankCount(pb).healthy + getPhoneBankCount(pb).issue || 0 }}<span class="text-gray-500 text-lg">/{{
+                      getPhoneBankCount(pb).all || 0 }}</span>
+                  </div>
+                </div>
+                <img src="@/assets/img/ic_outline_phone_android.png" class="min-w-[41px] min-h-[41px] opacity-50" />
+              </div>
+            </div>
+
+            <div
+              class="bg-slate-800/50 border border-white/5 rounded-lg p-3 relative overflow-hidden group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase mb-1">AUTO-UPDATE</div>
+                  <div class="text-[11px] text-white tracking-wide leading-tight">
+                    <div>Grazling: <span class="text-blue-400 font-bold">{{ getAutoUpdateGrazling(pb) }}</span></div>
+                    <div>Automation: <span class="text-blue-400 font-bold">{{ getAutoUpdateAutomation(pb) }}</span>
+                    </div>
+                  </div>
+                </div>
+                <img src="@/assets/img/ic_round_update.png" class="min-w-[41px] min-h-[41px] opacity-50" />
+              </div>
             </div>
           </div>
-          <div
-            class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Automation Symlink</span>
-              <img :src="getHealthCheck(item).automation_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
-                class="w-5 h-5" />
+
+          <div class="px-4 py-2 grid grid-cols-2 gap-4 bg-slate-900/40">
+            <div
+              class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Automation Git</span>
+                <img
+                  :src="getHealthCheck(pb).automation_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
+                  class="w-5 h-5" />
+              </div>
             </div>
-          </div>
-          <div
-            class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Grazling Git</span>
-              <img
-                :src="getHealthCheck(item).grazling_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
-                class="w-5 h-5" />
+            <div
+              class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Automation Symlink</span>
+                <img :src="getHealthCheck(pb).automation_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
+                  class="w-5 h-5" />
+              </div>
             </div>
-          </div>
-          <div
-            class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Grazling Symlink</span>
-              <img :src="getHealthCheck(item).grazling_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
-                class="w-5 h-5" />
+            <div
+              class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Grazling Git</span>
+                <img
+                  :src="getHealthCheck(pb).grazling_git_health ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
+                  class="w-5 h-5" />
+              </div>
             </div>
-          </div>
-          <div
-            class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors col-span-1">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Cron Status</span>
-              <img :src="getHealthCheck(item).cron_status ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
-                class="w-5 h-5" />
+            <div
+              class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Grazling Symlink</span>
+                <img :src="getHealthCheck(pb).grazling_symlink ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
+                  class="w-5 h-5" />
+              </div>
+            </div>
+            <div
+              class="min-h-[46px] bg-slate-800/50 border border-white/5 rounded-lg p-3 group hover:bg-slate-800/70 transition-colors col-span-1">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Cron Status</span>
+                <img :src="getHealthCheck(pb).cron_status ? getImageUrl('ic_on.png') : getImageUrl('ic_off.png')"
+                  class="w-5 h-5" />
+              </div>
             </div>
           </div>
         </div>

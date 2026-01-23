@@ -43,7 +43,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
                     total: institution.phone_banks?.length || 0
                 },
                 autoUpdate: 'Enable',
-                checks: []
+                checks: [],
+                phone_banks: institution.phone_banks || []
             }));
     });
 
