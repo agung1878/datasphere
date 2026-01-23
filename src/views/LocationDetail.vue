@@ -99,9 +99,12 @@ const fetchPhoneBankDetails = async () => {
           connect_internet: phone.data?.is_connected_to_wifi,
           whatsapp: phone.data?.versioning?.whatsapp || 'N/A',
           telegram: phone.data?.versioning?.telegram || 'N/A',
+          os: phone.data?.specs?.os || 'N/A',
+          sdk: phone.data?.specs?.sdk || 'N/A',
+          oneui: phone.data?.specs?.oneui || 'N/A',
           update: formatDate(phone.updated_at),
           notes: phone.data?.notes || '...',
-          ip: phoneBankIp, // Add IP to device object
+          ip: phoneBankIp, 
           rawData: phone,
         }));
       });
@@ -219,9 +222,9 @@ onMounted(() => {
     </div>
     
     <!-- Main Content -->
-    <div class="relative z-10 h-full flex flex-col pt-[74px] pb-6 overflow-y-auto">
+    <div class="relative z-10 h-full flex flex-col pt-[74px] pb-6 overflow-hidden">
     <!-- Breadcrumb & Back -->
-    <div class="relative w-full h-[62px] flex items-center px-4 mb-6">
+    <div class="relative w-full h-[62px] flex items-center px-4 mb-6 flex-shrink-0">
        <!-- Background -->
        <img src="@/assets/img/bg_brb_2.png" class="absolute inset-0 w-full h-full object-fill" alt="" />
        
@@ -277,7 +280,7 @@ onMounted(() => {
     </div>
 
     <!-- Top Dashboard Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mx-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mx-6 flex-shrink-0">
       
       <!-- Left Card: Stats -->
       <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)]">
@@ -420,10 +423,10 @@ onMounted(() => {
     </div>
 
     <!-- Device List Section -->
-    <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)] min-h-0 mx-6">
+    <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)] min-h-0 mx-6 flex-1 flex flex-col">
       
       <!-- Toolbar -->
-      <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 flex-shrink-0">
          <div class="flex items-center justify-center space-x-4">
             <div class="flex items-center justify-center bg-transparent border border-[#2E58F2] w-[159px] h-[35px] px-4 py-1 solid rounded-lg text-sm font-bold text-white">
                 <span class="text-xm font-bold text-white">
@@ -470,62 +473,66 @@ onMounted(() => {
          </div> -->
       </div>
 
-      <!-- Table Header -->
-      <div class="grid grid-cols-12 gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10">
-         <div class="col-span-2">ID</div>
-         <div class="col-span-1">Status</div>
-         <div class="col-span-2">Internet</div>
-         <div class="col-span-1">WhatsApp</div>
-         <div class="col-span-1">Telegram</div>
-         <div class="col-span-2">Latest Update <span class="text-blue-500">↓</span></div>
-         <div class="col-span-2">Notes</div>
-         <!-- <div class="col-span-1 text-right">Action</div> -->
-      </div>
+      <!-- Table Container with Horizontal Scroll -->
+      <div class="flex-1 overflow-auto custom-scrollbar relative">
+         <div class="min-w-[1600px]">
+             <!-- Table Header -->
+             <div class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10 sticky top-0 bg-[#040D2A] z-10">
+                <div class="col-span-2">ID</div>
+                <div class="col-span-1">Status</div>
+                <div class="col-span-2">Internet</div>
+                <div class="col-span-1">WhatsApp</div>
+                <div class="col-span-1">Telegram</div>
+                <div class="col-span-1">OS Android</div>
+                <div class="col-span-1">SDK</div>
+                <div class="col-span-1">OneUi</div>
+                <div class="col-span-2">Latest Update <span class="text-blue-500">↓</span></div>
+                <div class="col-span-2">Notes</div>
+             </div>
 
-      <!-- Table Body -->
-      <div class="flex-1 overflow-y-auto custom-scrollbar max-h-[400px]">
-         <div v-for="(device, index) in filteredDeviceList" :key="index" class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
-            
-            <div class="col-span-2 font-mono text-gray-300 font-bold truncate">{{ device.id }}</div>
-            
-            <div class="col-span-1">
-               <span 
-                  class="px-2 py-0.5 rounded text-[10px] font-bold border flex items-center w-fit gap-1"
-                  :class="{
-                     'bg-green-500/10 text-green-400 border-green': device.rawData.statusx === 'HEALTHY',
-                     'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-orange-500/10 shadow-[0_0_10px_rgba(249,115,22,0.1)]': device.rawData.status === 'ISSUE',
-                     'bg-red-500/10 text-red-400 border-red-500/20 shadow-red-500/10': device.rawData.status === 'OFFLINE'
-                  }"
-               >
-                  <div class="w-1.5 h-1.5 rounded-full" :class="{
-                     'bg-green-500': device.rawData.status === 'HEALTHY',
-                     'bg-orange-500': device.rawData.status === 'MAINTENANCE',
-                     'bg-orange-500': device.rawData.status === 'ISSUE',
-                     'bg-red-500': device.rawData.status === 'UNHEALTHY',
-                     'bg-red-500': device.rawData.status === 'OFFLINE'
-                  }"></div>
-                  {{ device.rawData.status }}
-               </span>
-            </div>
+             <!-- Table Body -->
+             <div class="pb-2">
+                <div v-for="(device, index) in filteredDeviceList" :key="index" class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
+                   
+                   <div class="col-span-2 font-mono text-gray-300 font-bold truncate" :title="device.id">{{ device.id }}</div>
+                   
+                   <div class="col-span-1">
+                      <span 
+                         class="px-2 py-0.5 rounded text-[10px] font-bold border flex items-center w-fit gap-1"
+                         :class="{
+                            'bg-green-500/10 text-green-400 border-green': device.rawData.statusx === 'HEALTHY',
+                            'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-orange-500/10 shadow-[0_0_10px_rgba(249,115,22,0.1)]': device.rawData.status === 'ISSUE',
+                            'bg-red-500/10 text-red-400 border-red-500/20 shadow-red-500/10': device.rawData.status === 'OFFLINE'
+                         }"
+                      >
+                         <div class="w-1.5 h-1.5 rounded-full" :class="{
+                            'bg-green-500': device.rawData.status === 'HEALTHY',
+                            'bg-orange-500': device.rawData.status === 'MAINTENANCE',
+                            'bg-orange-500': device.rawData.status === 'ISSUE',
+                            'bg-red-500': device.rawData.status === 'UNHEALTHY',
+                            'bg-red-500': device.rawData.status === 'OFFLINE'
+                         }"></div>
+                         {{ device.rawData.status }}
+                      </span>
+                   </div>
 
-            <div class="col-span-2 flex items-center gap-2 text-gray-300">
-               <WifiOff v-if="device.internet === 'Offline'" class="w-4 h-4 text-orange-400" />
-               <div v-else class="w-4 h-4 rounded-full border-2 border-green-500/50 flex items-center justify-center">
-                  <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-               </div>
-               <span :class="{'text-gray-500': device.internet === 'Offline'}">{{ device.internet }}</span>
-            </div>
+                   <div class="col-span-2 flex items-center gap-2 text-gray-300 truncate" :title="device.internet">
+                      <WifiOff v-if="device.internet === 'Offline'" class="w-4 h-4 text-orange-400 flex-shrink-0" />
+                      <div v-else class="w-4 h-4 rounded-full border-2 border-green-500/50 flex items-center justify-center flex-shrink-0">
+                         <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      </div>
+                      <span class="truncate" :class="{'text-gray-500': device.internet === 'Offline'}">{{ device.internet }}</span>
+                   </div>
 
-            <div class="col-span-1 text-gray-300">{{ device.whatsapp }}</div>
-            <div class="col-span-1 text-gray-300">{{ device.telegram }}</div>
-            <div class="col-span-2 text-gray-300">{{ device.update }}</div>
-            <div class="col-span-2 text-gray-300">{{ device.notes }}</div>
-            
-            <!-- <div class="col-span-1 flex justify-end">
-               <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
-                  <Settings class="w-4 h-4" />
-               </button>
-            </div> -->
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.whatsapp">{{ device.whatsapp }}</div>
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.telegram">{{ device.telegram }}</div>
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.os">{{ device.os }}</div>
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.sdk">{{ device.sdk }}</div>
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.oneui">{{ device.oneui }}</div>
+                   <div class="col-span-2 text-gray-300 truncate" :title="device.update">{{ device.update }}</div>
+                   <div class="col-span-2 text-gray-300" :title="device.notes">{{ device.notes }}</div>
+                </div>
+             </div>
          </div>
       </div>
    </div>
