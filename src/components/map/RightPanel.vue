@@ -92,6 +92,37 @@ const setItemRef = (el, id) => {
   }
 };
 
+/**
+ * Converts a date into a human-readable relative time string.
+ * @param {Date | number} date - The date object or timestamp to compare.
+ * @param {string} [lang='en'] - The language code (e.g., 'en', 'es', 'fr').
+ * @returns {string} - The formatted relative time string.
+ */
+function getRelativeTimeString(date, lang = 'en') {
+  const timeMs = typeof date === 'number' ? date : date.getTime();
+  const deltaSeconds = Math.round((timeMs - Date.now()) / 1000);
+
+  // Array of time units and their values in seconds
+  const cutoffs = [
+    { type: 'year', value: 31536000 },
+    { type: 'month', value: 2592000 },
+    { type: 'week', value: 604800 },
+    { type: 'day', value: 86400 },
+    { type: 'hour', value: 3600 },
+    { type: 'minute', value: 60 },
+    { type: 'second', value: 1 },
+  ];
+
+  // Find the appropriate unit for the delta
+  const unitObj = cutoffs.find(x => Math.abs(deltaSeconds) >= x.value) || cutoffs[cutoffs.length - 1];
+
+  // Create the Intl formatter
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+
+  // Calculate the value for the unit and format it
+  return rtf.format(Math.floor(deltaSeconds / unitObj.value), unitObj.type);
+}
+
 // Scroll to active item when it changes or panel opens
 watch(
   [() => props.activeLocationId, () => props.show],
@@ -128,9 +159,15 @@ watch(
           <div class="relative z-10 px-6 pt-6 pb-3">
             <div class="flex justify-between items-center">
               <div class="flex flex-row gap-1 items-center justify-between w-full">
-                <h2 class="text-2xl font-bold text-white tracking-wide">
-                  {{ item.name }}
-                </h2>
+                <div class="flex flex-col">
+                  <h2 class="text-2xl font-bold text-white tracking-wide">
+                    {{ item.name }}
+                  </h2>
+                  <small>{{ item.phone_banks[0]?.latest_ping ? getRelativeTimeString(new
+                    Date(item.phone_banks[0]?.latest_ping),
+                    'en') : "-" }}</small>
+                </div>
+
                 <div v-if="item?.phone_banks?.[0]?.status" :class="getBadgeStyles(item.phone_banks[0].status)">
                   {{ item.phone_banks[0].status }}
                 </div>
@@ -146,7 +183,7 @@ watch(
 
           <div class="relative z-10 bg-black/70 px-6 py-2">
             <p class="text-xs text-gray-200 tracking-wide">
-              {{item.phone_banks[0].type}}
+              {{ item.phone_banks[0].type }}
             </p>
           </div>
         </div>
