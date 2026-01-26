@@ -100,7 +100,7 @@ const handleNext = () => {
     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="$emit('close')"></div>
     
     <!-- Modal Content -->
-    <div class="relative w-full max-w-5xl bg-[url(@/assets/img/bg_stream_device.png)] bg-no-repeat bg-[length:100%_100%] min-w-[1034px] min-h-[753px] border border-blue-900/50 rounded-lg shadow-[0_0_50px_rgba(30,58,138,0.3)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="relative w-full max-w-5xl bg-[url(@/assets/img/bg_stream_device.png)] bg-no-repeat bg-[length:100%_100%] w-full md:min-w-[800px] lg:min-w-[1034px] min-h-[500px] md:min-h-[753px] border border-blue-900/50 rounded-lg shadow-[0_0_50px_rgba(30,58,138,0.3)] overflow-hidden flex flex-col max-h-[90vh]">
       
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-blue-900/30">
@@ -111,15 +111,15 @@ const handleNext = () => {
       </div>
 
       <!-- Body -->
-      <div class="p-8 flex-1 overflow-hidden flex flex-col">
+      <div class="p-4 md:p-8 flex-1 overflow-hidden flex flex-col">
         
         <!-- Filters -->
-        <div class="flex items-center justify-between mb-6">
-             <label class="text-gray-300 font-medium">Device</label>
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+             <label class="text-gray-300 font-medium whitespace-nowrap">Device</label>
 
-           <div class="flex items-center gap-4">
-             <div class="relative">
-                <button @click="isDropdownOpen = !isDropdownOpen" class="min-w-[140px] min-h-[54px] bg-[#0B1739] border border-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center justify-between text-sm hover:border-blue-500 transition-colors">
+           <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+             <div class="relative w-full md:w-auto">
+                <button @click="isDropdownOpen = !isDropdownOpen" class="w-full md:min-w-[140px] min-h-[54px] bg-[#0B1739] border border-blue-800 text-white px-4 py-2.5 rounded-lg flex items-center justify-between text-sm hover:border-blue-500 transition-colors">
                    {{ filterStatus }}
                    <ChevronDown class="w-4 h-4 text-gray-400" />
                 </button>
@@ -133,17 +133,18 @@ const handleNext = () => {
                 </div>
              </div>
            
-             <div class="relative">
+             <div class="relative w-full md:w-auto">
                 <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input v-model="searchQuery" type="text" placeholder="Search" 
-                       class="min-w-[354px] min-h-[54px] bg-[#0B1739] border border-blue-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder:text-gray-600">
+                       class="w-full md:min-w-[354px] min-h-[54px] bg-[#0B1739] border border-blue-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder:text-gray-600">
              </div>
            </div>
         </div>
 
         <!-- Table Container with Neon Border Effect -->
         <div class="relative border border-blue-500 rounded-lg p-[1px] shadow-[0_0_15px_rgba(59,130,246,0.15)] flex-1 flex flex-col overflow-hidden bg-[#040D2A]">
-           <div class="bg-[#050C25] w-full h-full rounded-lg flex flex-col overflow-hidden">
+           <div class="flex-1 overflow-x-auto">
+             <div class="bg-[#050C25] min-w-[800px] h-full rounded-lg flex flex-col overflow-hidden">
               
               <!-- Table Header -->
               <div class="grid grid-cols-12 gap-4 px-6 py-4 bg-[#0B1739] text-xs font-bold text-gray-300 uppercase tracking-wider border-b border-blue-900/30">
@@ -193,6 +194,7 @@ const handleNext = () => {
                  </div>
               </div>
 
+             </div>
            </div>
            
            <!-- Scrollbar Track Decor -->

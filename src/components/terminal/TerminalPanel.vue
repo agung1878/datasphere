@@ -34,7 +34,7 @@ const initTerminal = () => {
   if (term) return;
   term = new Terminal({
     cursorBlink: true,
-    fontSize: 13,
+    fontSize: window.innerWidth < 768 ? 10 : 13,
     theme: { background: '#0B0F19' }
   });
   fitAddon = new FitAddon();
@@ -123,7 +123,7 @@ onBeforeUnmount(cleanup);
     enter-from-class="transform translate-y-full opacity-0"
     enter-to-class="transform translate-y-0 opacity-100"
   >
-    <div v-if="isOpen" class="fixed inset-x-0 bottom-0 z-40 flex h-[600px] bg-[#161b22] border-t border-gray-700 shadow-2xl">
+    <div v-if="isOpen" class="fixed inset-x-0 bottom-0 z-40 flex h-[85vh] md:h-[600px] bg-[#161b22] border-t border-gray-700 shadow-2xl">
       
       <div class="w-80 flex-none bg-[#1e232e] border-r border-gray-700 p-6 flex flex-col" style="display: none;">
         <div class="flex items-center gap-2 mb-1">
@@ -188,14 +188,14 @@ onBeforeUnmount(cleanup);
       </div>
 
       <div class="flex-1 flex flex-col bg-[#0B0F19] relative">
-        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center px-4 shrink-0 relative z-50">
-          <div class="flex items-center gap-2 text-gray-400 min-w-0 pr-8">
+        <div class="h-10 bg-[#161b22] border-b border-gray-700 flex items-center justify-between px-4 shrink-0 z-50">
+          <div class="flex items-center gap-2 text-gray-400 min-w-0">
             <TerminalIcon class="w-4 h-4 flex-shrink-0" />
             <span class="text-xs font-bold uppercase tracking-widest truncate">Console | Connect to {{ serverConfig.host }}</span>
           </div>
           <button 
             @click="emit('close')" 
-            class="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 z-50 cursor-pointer"
+            class="p-2 hover:bg-red-900/50 rounded text-gray-400 hover:text-red-400 cursor-pointer flex-shrink-0 ml-2"
           >
             <X class="w-4 h-4" />
           </button>

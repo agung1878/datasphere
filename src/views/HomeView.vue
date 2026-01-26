@@ -27,7 +27,7 @@ onMounted(async () => {
         
         <!-- Left Widget -->
         <div class="absolute top-6 left-6 pointer-events-auto">
-          <ServerStatusWidget />
+          <!-- <ServerStatusWidget /> -->
         </div>
 
         <!-- Right Widget -->

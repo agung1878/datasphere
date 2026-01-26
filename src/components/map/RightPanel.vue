@@ -133,11 +133,11 @@ watch(
 
 <template>
   <div
-    class="fixed right-0 top-0 h-full w-[635px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 shadow-2xl z-[60] transform transition-transform duration-500 ease-in-out flex flex-col pt-20"
+    class="fixed right-0 top-0 h-full w-full md:w-[635px] bg-slate-900/95 backdrop-blur-xl border-l border-white/10 shadow-2xl z-[60] transform transition-transform duration-500 ease-in-out flex flex-col pt-20"
     :class="show ? 'translate-x-0' : 'translate-x-full'">
 
     <button @click="$emit('close')"
-      class="absolute top-20 left-[-40px] bg-slate-800 text-white p-2 rounded-l-md border-y border-l border-white/10 hover:bg-slate-700 transition-colors">
+      class="absolute top-4 right-4 md:top-20 md:left-[-40px] md:right-auto z-50 bg-slate-800 text-white p-2 rounded-full md:rounded-l-md md:rounded-r-none border border-white/10 hover:bg-slate-700 transition-colors">
       <X class="w-5 h-5" />
     </button>
 

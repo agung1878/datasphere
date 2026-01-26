@@ -29,7 +29,7 @@ watch(() => dashboardStore.summary, (newSummary) => {
 </script>
 
 <template>
-  <div class="glass-panel p-4 min-w-[240px] select-none transform hover:scale-105 transition-transform duration-300 mt-[60px] z-[1000]">
+  <div class="glass-panel p-4 w-full md:w-auto md:min-w-[240px] select-none transform hover:scale-105 transition-transform duration-300">
     <!-- Loading State -->
     <div v-if="dashboardStore.loading" class="flex justify-center items-center h-32">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>

@@ -37,6 +37,7 @@ const ipAddress = computed(() => locationData.value?.phone_banks?.[0]?.ip || 'N/
 const version = computed(() => locationData.value?.phone_banks?.[0]?.data.server_versioning.grazling || 'N/A');
 const type = computed(() => locationData.value?.phone_banks?.[0]?.type || 'N/A');
 const pbId = computed(()=> locationData.value?.phone_banks?.[0]?.id || 'N/A');
+const releaseYear = computed(()=> locationData.value?.phone_banks?.[0]?.release_year || 'N/A');
 
 console.log("phone_bank_id: ", pbId);
 
@@ -100,6 +101,7 @@ const fetchPhoneBankDetails = async () => {
           whatsapp: phone.data?.versioning?.whatsapp || 'N/A',
           telegram: phone.data?.versioning?.telegram || 'N/A',
           os: phone.data?.specs?.os || 'N/A',
+          model: phone.data?.specs?.model || 'N/A',
           sdk: phone.data?.specs?.sdk || 'N/A',
           oneui: phone.data?.specs?.oneui || 'N/A',
           update: formatDate(phone.updated_at),
@@ -222,9 +224,9 @@ onMounted(() => {
     </div>
     
     <!-- Main Content -->
-    <div class="relative z-10 h-full flex flex-col pt-[74px] pb-6 overflow-hidden">
+    <div class="relative z-10 h-full flex flex-col pt-[74px] pb-6 overflow-y-auto md:overflow-hidden">
     <!-- Breadcrumb & Back -->
-    <div class="relative w-full h-[62px] flex items-center px-4 mb-6 flex-shrink-0">
+    <div class="relative w-full h-[62px] hidden md:flex items-center px-4 mb-6 flex-shrink-0">
        <!-- Background -->
        <img src="@/assets/img/bg_brb_2.png" class="absolute inset-0 w-full h-full object-fill" alt="" />
        
@@ -280,33 +282,35 @@ onMounted(() => {
     </div>
 
     <!-- Top Dashboard Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mx-6 flex-shrink-0">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8 mx-4 md:mx-6 flex-shrink-0">
       
       <!-- Left Card: Stats -->
       <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)]">
         <!-- Background Decor -->
         <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-        <div class="flex justify-between items-start mb-6 relative z-10">
+        <div class="flex flex-col md:flex-row justify-between items-start mb-6 relative z-10 gap-4">
           <div>
             <h1 class="text-2xl font-bold text-white mb-1">{{ locationName }}</h1>
             <p class="text-sm text-gray-400">IP Address: <span class="text-gray-200">{{ ipAddress }}</span> 
               <span class="mx-2 text-gray-600">|</span> {{ version }}
-              <span class="mx-2 text-gray-600">|</span> {{ type }}</p>
+              <span class="mx-2 text-gray-600">|</span> {{ type }}
+              <span class="mx-2 text-gray-600">|</span> Release Year: {{ releaseYear }}
+            </p>
           </div>
-          <div class="flex items-center space-x-6">
+          <div class="flex items-center space-x-6 w-full md:w-auto">
             
             
             <button 
               @click="showUploadApkDialog = true"
-              class="bg-[url(@/assets/img/btn_upload_apk.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[134px] min-h-[36px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50">
+              class="bg-[url(@/assets/img/btn_upload_apk.png)] bg-contain bg-center bg-no-repeat w-full md:w-auto min-w-[200px] min-h-[46px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50 scale-95 md:scale-100 origin-right transition-transform">
                <!-- <span class="animate-spin-slow"><RefreshCw class="w-4 h-4" /></span>
                Update All -->
             </button>
           </div>
         </div>
 
-        <div class="flex gap-4 relative z-10">
+        <div class="flex flex-wrap gap-4 relative z-10 justify-center md:justify-start">
           <!-- Save Status -->
           <div class="w-[74px] flex-none bg-green-900/20 border border-green-500/30 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-green-900/30 transition-colors cursor-pointer group">
              <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
@@ -314,7 +318,7 @@ onMounted(() => {
              </div>
              <span class="text-xs font-bold text-green-400">Save</span>
           </div>
-            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[181.67px] min-h-[78px] gap-[18px] flex items-center">
+            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full md:w-auto md:min-w-[181px] min-h-[78px] gap-[18px] flex items-center justify-center md:justify-start">
                <img
                   class="mt-px h-[53px] w-[53px] ml-3.5 aspect-[1]"
                   alt="Ic outline phone"
@@ -337,7 +341,7 @@ onMounted(() => {
                   </div>
                </div>
             </div>
-            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[181.67px] min-h-[78px] gap-[18px] flex items-center">
+            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full md:w-auto md:min-w-[181px] min-h-[78px] gap-[18px] flex items-center justify-center md:justify-start">
                <img
                   class="mt-px h-[53px] w-[53px] ml-3.5 aspect-[1]"
                   alt="Ic outline phone"
@@ -361,7 +365,7 @@ onMounted(() => {
                </div>
             </div>
 
-            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full min-w-[181.67px] min-h-[78px] gap-[18px] flex items-center">
+            <div class="bg-[url(@/assets/img/status_item.png)] bg-no-repeat bg-[length:100%_100%] w-full md:w-auto md:min-w-[181px] min-h-[78px] gap-[18px] flex items-center justify-center md:justify-start">
                <img
                   class="mt-px h-[53px] w-[53px] ml-3.5 aspect-[1]"
                   alt="Ic outline phone"
@@ -423,7 +427,7 @@ onMounted(() => {
     </div>
 
     <!-- Device List Section -->
-    <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)] min-h-0 mx-6 flex-1 flex flex-col">
+    <div class="bg-blued border border-blue-neon rounded-2xl p-6 relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.1)] flex-none h-auto md:flex-1 md:min-h-0 mx-6 flex flex-col">
       
       <!-- Toolbar -->
       <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 flex-shrink-0">
@@ -433,7 +437,7 @@ onMounted(() => {
                    Total Device {{ stats.total }}
                 </span>
             </div>
-            <div class="flex bg-transparent justify-between rounded-lg p-1 border border-[#2E58F2] w-[312px] h-[35px]">
+            <div class="flex flex-row overflow-x-auto custom-scrollbar md:overflow-visible bg-transparent justify-between rounded-lg p-1 border border-[#2E58F2] w-full md:w-[312px] h-auto md:h-[35px] gap-2 md:gap-0">
                <button 
                  @click="setFilter('All')"
                  class="px-4 py-1 rounded text-xs font-bold transition-colors"
@@ -455,13 +459,13 @@ onMounted(() => {
                  :class="activeFilter === 'Offline' ? 'bg-[#0D39D9] text-white shadow-lg shadow-blue-600/20' : 'text-gray-400 hover:text-white'"
                >Offline</button>
             </div>
-            <div class="relative group border border-[#2E58F2] w-[329px] h-[35px] rounded-lg">
+            <div class="relative group border border-[#2E58F2] w-full md:w-[329px] h-[35px] rounded-lg">
                   <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
                   <input 
                     v-model="searchQuery"
                     type="text" 
                     placeholder="Search" 
-                    class="bg-transparent w-[329px] h-[35px] border border-[#2E58F2] rounded-lg pl-10 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50 w-64 transition-all placeholder:text-gray-600 focus:shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                    class="bg-transparent w-full h-[35px] border border-[#2E58F2] rounded-lg pl-10 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-gray-600 focus:shadow-[0_0_10px_rgba(59,130,246,0.1)]">
             </div>
          </div>
 
@@ -474,15 +478,16 @@ onMounted(() => {
       </div>
 
       <!-- Table Container with Horizontal Scroll -->
-      <div class="flex-1 overflow-auto custom-scrollbar relative">
+      <div class="h-auto md:flex-1 overflow-auto custom-scrollbar relative">
          <div class="min-w-[1600px]">
              <!-- Table Header -->
-             <div class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10 sticky top-0 bg-[#040D2A] z-10">
+             <div class="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10 sticky top-0 bg-[#040D2A] z-10">
                 <div class="col-span-2">ID</div>
                 <div class="col-span-1">Status</div>
                 <div class="col-span-2">Internet</div>
                 <div class="col-span-1">WhatsApp</div>
                 <div class="col-span-1">Telegram</div>
+                <div class="col-span-1">Model HP</div>
                 <div class="col-span-1">OS Android</div>
                 <div class="col-span-1">SDK</div>
                 <div class="col-span-1">OneUi</div>
@@ -492,7 +497,7 @@ onMounted(() => {
 
              <!-- Table Body -->
              <div class="pb-2">
-                <div v-for="(device, index) in filteredDeviceList" :key="index" class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
+                <div v-for="(device, index) in filteredDeviceList" :key="index" class="grid grid-cols-[repeat(15,minmax(0,1fr))] gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group">
                    
                    <div class="col-span-2 font-mono text-gray-300 font-bold truncate" :title="device.id">{{ device.id }}</div>
                    
@@ -526,6 +531,7 @@ onMounted(() => {
 
                    <div class="col-span-1 text-gray-300 truncate" :title="device.whatsapp">{{ device.whatsapp }}</div>
                    <div class="col-span-1 text-gray-300 truncate" :title="device.telegram">{{ device.telegram }}</div>
+                   <div class="col-span-1 text-gray-300 truncate" :title="device.model">{{ device.model }}</div>
                    <div class="col-span-1 text-gray-300 truncate" :title="device.os">{{ device.os }}</div>
                    <div class="col-span-1 text-gray-300 truncate" :title="device.sdk">{{ device.sdk }}</div>
                    <div class="col-span-1 text-gray-300 truncate" :title="device.oneui">{{ device.oneui }}</div>

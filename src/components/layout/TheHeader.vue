@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, Settings, User, LogOut, ChevronDown } from 'lucide-vue-next';
+import { Bell, Settings, User, LogOut, ChevronDown, Menu, X } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import NotificationWidget from '@/components/dashboard/NotificationWidget.vue';
 
@@ -9,6 +9,7 @@ const authStore = useAuthStore();
 const router = useRouter();
 const showProfileMenu = ref(false);
 const showNotificationMenu = ref(false);
+const showMobileMenu = ref(false);
 
 const goDashboard = () => {
   router.push('/');
@@ -74,8 +75,8 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center space-x-4">
+    <!-- Actions (Desktop) -->
+    <div class="hidden md:flex items-center space-x-4">
       <div class="relative notification-button">
         <button class="p-2 rounded-full hover:bg-white/10 transition-colors relative group"
         @click="toggleNotificationMenu">
@@ -125,6 +126,57 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button 
+      class="md:hidden p-2 text-gray-300 hover:text-white"
+      @click="showMobileMenu = !showMobileMenu"
+    >
+      <Menu v-if="!showMobileMenu" class="w-6 h-6" />
+      <X v-else class="w-6 h-6" />
+    </button>
+
+    <!-- Mobile Menu Dropdown -->
+    <div 
+      v-if="showMobileMenu"
+      class="absolute top-full left-0 w-full bg-slate-900/95 backdrop-blur-md border-b border-blue-500/30 shadow-2xl md:hidden flex flex-col p-4 space-y-4"
+    >
+       <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 border border-white/5">
+         <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-400">
+               <User class="w-4 h-4" />
+            </div>
+            <div class="flex flex-col">
+               <span class="text-xs text-gray-400">Signed in as</span>
+               <span class="text-sm font-bold text-white">{{ authStore.currentUser?.username }}</span>
+            </div>
+         </div>
+       </div>
+
+       <div class="grid grid-cols-2 gap-3">
+         <button 
+            @click="router.push('/notifications'); showMobileMenu = false"
+            class="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-white/5 hover:bg-slate-700 hover:border-blue-500/30 transition-all text-gray-300 hover:text-white"
+         >
+            <Bell class="w-4 h-4" />
+            <span class="text-sm font-medium">Notifications</span>
+         </button>
+          <button 
+            class="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-white/5 hover:bg-slate-700 hover:border-blue-500/30 transition-all text-gray-300 hover:text-white"
+         >
+            <Settings class="w-4 h-4" />
+            <span class="text-sm font-medium">Settings</span>
+         </button>
+       </div>
+
+       <button 
+         @click="handleLogout"
+         class="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-red-900/20 border border-red-500/20 hover:bg-red-900/40 text-red-400 transition-all"
+       >
+         <LogOut class="w-4 h-4" />
+         <span class="text-sm font-medium">Logout</span>
+       </button>
     </div>
   </header>
 </template>

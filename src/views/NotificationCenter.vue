@@ -129,45 +129,47 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Table -->
-        <div class="relative z-10">
-          <!-- Table Header -->
-          <div class="grid grid-cols-12 gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10">
-            <div class="col-span-2">Date</div>
-            <div class="col-span-1">Type</div>
-            <div class="col-span-4">Message</div>
-            <div class="col-span-3">Device</div>
-            <div class="col-span-1">Status</div>
-            <div class="col-span-1 text-right">Action</div>
-          </div>
+        <!-- Table Container -->
+        <div class="relative z-10 flex-1 overflow-auto custom-scrollbar">
+          <div class="min-w-[900px]">
+            <!-- Table Header -->
+            <div class="grid grid-cols-12 gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-3 border-b border-white/10 sticky top-0 bg-[#040D2A] z-10">
+              <div class="col-span-2">Date</div>
+              <div class="col-span-1">Type</div>
+              <div class="col-span-4">Message</div>
+              <div class="col-span-3">Device</div>
+              <div class="col-span-1">Status</div>
+              <div class="col-span-1 text-right">Action</div>
+            </div>
 
-          <!-- Table Body -->
-          <div class="flex-1 overflow-y-auto custom-scrollbar">
-            <div 
-              v-for="notification in notificationStore.notifications" 
-              :key="notification.id" 
-              class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group"
-            >
-              <div class="col-span-2 text-gray-300 text-xs">{{ formatDate(notification.created_at) }}</div>
-              <div class="col-span-1">
-                <span :class="['text-xs font-bold', getTypeColor(notification.type)]">
-                  {{ notification.type }}
-                </span>
-              </div>
-              <div class="col-span-4 text-gray-300 text-xs">{{ notification.message }}</div>
-              <div class="col-span-3 text-gray-300 text-xs">{{ notification.device_id }}</div>
-              <div class="col-span-1">
-                <span :class="['text-xs font-bold', getStatusColor(notification.status)]">
-                  {{ notification.status }}
-                </span>
-              </div>
-              <div class="col-span-1 flex justify-end">
-                <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
+            <!-- Table Body -->
+            <div class="pb-2">
+              <div 
+                v-for="notification in notificationStore.notifications" 
+                :key="notification.id" 
+                class="grid grid-cols-12 gap-4 items-center px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors text-sm group"
+              >
+                <div class="col-span-2 text-gray-300 text-xs">{{ formatDate(notification.created_at) }}</div>
+                <div class="col-span-1">
+                  <span :class="['text-xs font-bold', getTypeColor(notification.type)]">
+                    {{ notification.type }}
+                  </span>
+                </div>
+                <div class="col-span-4 text-gray-300 text-xs">{{ notification.message }}</div>
+                <div class="col-span-3 text-gray-300 text-xs">{{ notification.device_id }}</div>
+                <div class="col-span-1">
+                  <span :class="['text-xs font-bold', getStatusColor(notification.status)]">
+                    {{ notification.status }}
+                  </span>
+                </div>
+                <div class="col-span-1 flex justify-end">
+                  <button class="p-1.5 border border-blue-500/30 rounded text-blue-400 hover:bg-blue-500 hover:text-white transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

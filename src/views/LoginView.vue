@@ -41,7 +41,7 @@ const handleLogin = async (e) => {
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
     
     <!-- Modal Content -->
-    <div class="relative w-full max-w-5xl bg-[url(@/assets/img/bg_confirmation.png)] bg-no-repeat bg-[length:100%_100%] min-w-[1034px] min-h-[753px] border border-blue-900/80 rounded-xl shadow-[0_0_50px_rgba(30,58,138,0.3)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="relative w-full max-w-5xl bg-[url(@/assets/img/bg_confirmation.png)] bg-no-repeat bg-[length:100%_100%] w-full md:min-w-[1034px] min-h-[600px] md:min-h-[753px] border border-blue-900/80 rounded-xl shadow-[0_0_50px_rgba(30,58,138,0.3)] overflow-hidden flex flex-col max-h-[90vh]">
       
       <!-- Header -->
       <div class="flex items-end justify-end px-6 py-4">

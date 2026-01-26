@@ -190,9 +190,9 @@ watch(() => dashboardStore.filteredMapLocations, () => {
   <div class="relative w-full h-full">
     <div ref="mapContainer" class="w-full h-full z-0 absolute inset-0 bg-slate-900"></div>
 
-    <div class="info-server">
+    <div class="info-server w-full px-4 md:w-auto md:px-0">
       <div
-        class="w-80 bg-[#00000080]/50 backdrop-blur-md rounded-2xl shadow-2xl p-6 text-white font-medium border border-white/10">
+        class="w-full md:w-80 bg-[#00000080]/50 backdrop-blur-md rounded-2xl shadow-2xl p-6 text-white font-medium border border-white/10">
         <div class="flex justify-between items-center mb-4">
           <div class="text-xs">
             Total Phone Bank : <span class="text-blue-400">{{ servers.total }}</span> Devices
@@ -298,9 +298,16 @@ watch(() => dashboardStore.filteredMapLocations, () => {
 
 .info-server {
   position: absolute;
-  left: 18px;
-  top: 80px;
+  left: 0;
+  top: 90px;
   z-index: 1000;
+}
+
+@media (min-width: 768px) {
+  .info-server {
+    left: 18px;
+    top: 80px;
+  }
 }
 
 /* Transitions */
