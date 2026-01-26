@@ -301,11 +301,15 @@ onMounted(() => {
           <div class="flex items-center space-x-6 w-full md:w-auto">
             
             
-            <button 
+            <!-- <button 
               @click="showUploadApkDialog = true"
-              class="bg-[url(@/assets/img/btn_upload_apk.png)] bg-contain bg-center bg-no-repeat w-full md:w-auto min-w-[200px] min-h-[46px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50 scale-95 md:scale-100 origin-right transition-transform">
+              class="bg-[url(@/assets/img/btn_upload_apk.png)] bg-no-repeat bg-[length:100%_100%] w-full hidden md:flex min-w-[134px] min-h-[36px] hover:bg-blue-500 shadow-lg shadow-blue-600/20 border border-blue-400/50"> -->
                <!-- <span class="animate-spin-slow"><RefreshCw class="w-4 h-4" /></span>
                Update All -->
+            <!-- </button> -->
+            <button @click="showUploadApkDialog = true" class="px-4 py-2 w-full bg-blue-900/30 hover:bg-blue-900/50 border border-blue-500/30 text-blue-300 py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all">
+               <RefreshCw class="w-4 h-4" />
+               Update APK
             </button>
           </div>
         </div>

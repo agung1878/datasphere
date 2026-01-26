@@ -191,8 +191,24 @@ watch(() => dashboardStore.filteredMapLocations, () => {
     <div ref="mapContainer" class="w-full h-full z-0 absolute inset-0 bg-slate-900"></div>
 
     <div class="info-server w-full px-4 md:w-auto md:px-0">
-      <div
-        class="w-full md:w-80 bg-[#00000080]/50 backdrop-blur-md rounded-2xl shadow-2xl p-6 text-white font-medium border border-white/10">
+      <!-- Mobile Search Bar -->
+      <div class="block md:hidden w-full bg-[#00000080]/50 backdrop-blur-md rounded-2xl shadow-2xl p-4 border border-white/10">
+          <div class="flex items-center gap-3">
+             <Search class="w-5 h-5 text-slate-400" />
+             <input 
+                 v-model="searchInput" 
+                 type="text" 
+                 placeholder="Search location..." 
+                 class="flex-1 bg-transparent border-none text-white text-sm focus:ring-0 outline-none placeholder:text-slate-500"
+             />
+             <div v-if="searchInput" @click="searchInput = ''" class="p-1 bg-slate-800 rounded-full cursor-pointer">
+                 <X class="w-3 h-3 text-slate-400" />
+             </div>
+          </div>
+      </div>
+
+      <!-- Desktop Info Server Widget -->
+      <div class="hidden md:block w-full md:w-80 bg-[#00000080]/50 backdrop-blur-md rounded-2xl shadow-2xl p-6 text-white font-medium border border-white/10">
         <div class="flex justify-between items-center mb-4">
           <div class="text-xs">
             Total Phone Bank : <span class="text-blue-400">{{ servers.total }}</span> Devices

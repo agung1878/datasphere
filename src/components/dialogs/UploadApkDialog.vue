@@ -184,7 +184,7 @@ const handleClose = () => {
               >
                 <div v-if="selectedType === appType.value" class="w-2 h-2 bg-white rounded-full"></div>
               </div>
-              <span class="text-2xl">{{ appType.icon }}</span>
+              <!-- <span class="text-2xl">{{ appType.icon }}</span> -->
               <span class="text-white font-medium">{{ appType.label }}</span>
             </div>
           </div>
