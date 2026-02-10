@@ -2,7 +2,10 @@ import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import LocationDetail from '../views/LocationDetail.vue';
 import StreamingDevice from '../views/StreamingDevice.vue';
+import TaskScheduler from '../views/TaskScheduler.vue';
 import NotificationCenter from '../views/NotificationCenter.vue';
+import PhoneBank from '../views/PhoneBank.vue';
+import Phones from '../views/Phones.vue';
 import LoginView from '../views/LoginView.vue';
 import { useAuthStore } from '../stores/auth';
 
@@ -25,6 +28,13 @@ const routes = [
         meta: { requiresGuest: true }
     },
     {
+        path: '/scheduler',
+        name: 'scheduler',
+        component: TaskScheduler,
+        props: true,
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/location/:id',
         name: 'location-detail',
         component: LocationDetail,
@@ -42,6 +52,18 @@ const routes = [
         path: '/notifications',
         name: 'notification-center',
         component: NotificationCenter,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/phone-banks',
+        name: 'phone-banks',
+        component: PhoneBank,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/phones',
+        name: 'phones',
+        component: Phones,
         meta: { requiresAuth: true }
     }
 ];
