@@ -8,6 +8,9 @@ import {
   ChevronDown, Check, UserPlus, Minus, Image, Video, Upload
 } from 'lucide-vue-next';
 
+import ExportButton from '@/components/ExportButton.vue';
+import CustomSelect from '@/components/CustomSelect.vue';
+
 import { 
   getTasks, 
   getAllDevices, 
@@ -197,12 +200,13 @@ const mediaType = computed(() => {
   return currentTaskOption.value?.mediaType || null;
 });
 
+// Cache untuk menyimpan formatted devices agar tidak berat (100+ devices)
+const deviceCache = ref(new Map());
+
 const availableDevices = computed(() => {
-  console.log(currentTask.value);
-  const platform = currentTask.value.platform;
-  return devices.value.filter(device => 
-    device.platform === platform || !device.platform
-  );
+  // Tampilkan SEMUA devices, tidak filter berdasarkan platform
+  // User bisa pilih device apapun terlepas dari platform task
+  return devices.value;
 });
 
 const getTaskTypeName = (taskType) => {
@@ -228,6 +232,52 @@ const cronDescription = computed(() => {
   }
 });
 
+// Format options for CustomSelect component dengan caching
+// Format: "id - name - phone - platform"
+const senderDeviceOptions = computed(() => {
+  const cacheKey = `sender-${currentTask.value.receiver_number}-${devices.value.length}`;
+  
+  if (deviceCache.value.has(cacheKey)) {
+    return deviceCache.value.get(cacheKey);
+  }
+  
+  const options = availableDevices.value.map(device => {
+    const isDisabled = device.phone === currentTask.value.receiver_number;
+    return {
+      value: device.phone,
+      label: `${device.id || 'N/A'} - ${device.name || 'Unknown'} - ${device.phone}`,
+      icon: isDisabled ? '🚫' : '📱',
+      meta: `${device.platform || 'Unknown'}${isDisabled ? ' - Already selected as receiver' : ''}`,
+      disabled: isDisabled
+    };
+  });
+  
+  deviceCache.value.set(cacheKey, options);
+  return options;
+});
+
+const receiverDeviceOptions = computed(() => {
+  const cacheKey = `receiver-${currentTask.value.sender_device}-${devices.value.length}`;
+  
+  if (deviceCache.value.has(cacheKey)) {
+    return deviceCache.value.get(cacheKey);
+  }
+  
+  const options = availableDevices.value.map(device => {
+    const isDisabled = device.phone === currentTask.value.sender_device;
+    return {
+      value: device.phone,
+      label: `${device.id || 'N/A'} - ${device.name || 'Unknown'} - ${device.phone}`,
+      icon: isDisabled ? '🚫' : '📱',
+      meta: `${device.platform || 'Unknown'}${isDisabled ? ' - Already selected as sender' : ''}`,
+      disabled: isDisabled
+    };
+  });
+  
+  deviceCache.value.set(cacheKey, options);
+  return options;
+});
+
 // --- 2. CORE LOGIC & API ACTIONS ---
 const fetchData = async () => {
   loading.value = true;
@@ -238,6 +288,10 @@ const fetchData = async () => {
     ]);
     tasks.value = taskData;
     devices.value = deviceData.devices || [];
+    
+    // Clear cache saat data devices berubah
+    deviceCache.value.clear();
+    
     console.log('Tasks:', tasks.value);
     console.log('Devices:', devices.value);
   } catch (err) {
@@ -470,7 +524,19 @@ const openEditModal = (task) => {
 const selectTaskType = (taskType) => {
   const option = taskOptions.find(opt => opt.id === taskType);
   currentTask.value.task_type = taskType;
-  currentTask.value.platform = option.platform;
+  
+  // Jika ada sender_device yang sudah dipilih, ambil platform dari device tersebut
+  // Jika belum, gunakan default dari option
+  if (currentTask.value.sender_device) {
+    const senderDevice = devices.value.find(d => d.phone === currentTask.value.sender_device);
+    if (senderDevice && senderDevice.platform) {
+      currentTask.value.platform = senderDevice.platform;
+    } else {
+      currentTask.value.platform = option.platform;
+    }
+  } else {
+    currentTask.value.platform = option.platform;
+  }
   
   // Reset media fields
   currentTask.value.media_path = '';
@@ -487,6 +553,17 @@ const selectTaskType = (taskType) => {
     };
   }
 };
+
+// Watcher: Auto-update platform ketika sender_device berubah
+watch(() => currentTask.value.sender_device, (newSenderPhone) => {
+  if (newSenderPhone && !requiresProfile.value) {
+    const senderDevice = devices.value.find(d => d.phone === newSenderPhone);
+    if (senderDevice && senderDevice.platform) {
+      currentTask.value.platform = senderDevice.platform;
+      console.log(`✅ Platform auto-updated to: ${senderDevice.platform} from sender device`);
+    }
+  }
+});
 
 // Media file upload
 const handleMediaFileChange = async (event) => {
@@ -820,6 +897,9 @@ onUnmounted(() => clearInterval(logPolling.value));
             class="p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg hover:bg-blue-900/40 transition-all">
             <RefreshCw :class="{'animate-spin': loading}" class="w-4 h-4 text-blue-400" />
           </button>
+          
+          <!-- Export Button -->
+          <ExportButton />
           
           <button @click="openCreateModal" 
             class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all">
@@ -1232,20 +1312,11 @@ onUnmounted(() => clearInterval(logPolling.value));
                     <span class="bg-blue-500/20 px-3 py-1 rounded-lg text-[10px] font-black">FROM</span>
                     Sender Device
                   </label>
-                  <select 
-                    v-model="currentTask.sender_device" 
-                    class="w-full bg-black/40 border-2 border-blue-900/20 rounded-2xl p-5 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
-                  >
-                    <option value="" disabled>Select sender device...</option>
-                    <option 
-                      v-for="device in availableDevices" 
-                      :key="'sender-' + device.phone" 
-                      :value="device.phone"
-                      :disabled="device.phone === currentTask.receiver_number"
-                    >
-                      {{ device.phone === currentTask.receiver_number ? '🚫' : '📱' }} {{ device.phone }} - {{ device.platform || 'Unknown' }} ({{ device.id || 'N/A' }}){{ device.phone === currentTask.receiver_number ? ' - Already selected as receiver' : '' }}
-                    </option>
-                  </select>
+                  <CustomSelect
+                    v-model="currentTask.sender_device"
+                    :options="senderDeviceOptions"
+                    placeholder="Select sender device..."
+                  />
                   <p class="text-[10px] text-gray-500 italic">Device that will send the message</p>
                 </div>
 
@@ -1255,20 +1326,11 @@ onUnmounted(() => clearInterval(logPolling.value));
                     <span class="bg-green-500/20 px-3 py-1 rounded-lg text-[10px] font-black text-green-400">TO</span>
                     Receiver Device
                   </label>
-                  <select 
-                    v-model="currentTask.receiver_number" 
-                    class="w-full bg-black/40 border-2 border-blue-900/20 rounded-2xl p-5 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
-                  >
-                    <option value="" disabled>Select receiver device...</option>
-                    <option 
-                      v-for="device in availableDevices" 
-                      :key="'receiver-' + device.phone" 
-                      :value="device.phone"
-                      :disabled="device.phone === currentTask.sender_device"
-                    >
-                      {{ device.phone === currentTask.sender_device ? '🚫' : '📱' }} {{ device.phone }} - {{ device.platform || 'Unknown' }} ({{ device.id || 'N/A' }}){{ device.phone === currentTask.sender_device ? ' - Already selected as sender' : '' }}
-                    </option>
-                  </select>
+                  <CustomSelect
+                    v-model="currentTask.receiver_number"
+                    :options="receiverDeviceOptions"
+                    placeholder="Select receiver device..."
+                  />
                   <p class="text-[10px] text-gray-500 italic">Device that will receive the message</p>
                 </div>
 
@@ -1293,6 +1355,18 @@ onUnmounted(() => clearInterval(logPolling.value));
             </div>
 
             <!-- Message/Caption -->
+            <div v-if="requiresMedia" class="space-y-4">
+              <label class="text-[11px] font-black text-blue-400 uppercase tracking-[0.4em] ml-3">
+                Caption
+              </label>
+              <textarea 
+                v-model="currentTask.caption" 
+                rows="4" 
+                class="w-full bg-black/40 border-2 border-blue-900/20 rounded-[2rem] p-7 text-sm text-white focus:outline-none focus:border-blue-500 transition-all placeholder:text-gray-800" 
+                placeholder="Add caption for your media...">
+              </textarea>
+              <p class="text-[10px] text-gray-500 ml-3 italic">This text will be sent along with your image or video.</p>
+            </div>
             <!-- <div class="space-y-4">
               <label class="text-[11px] font-black text-blue-400 uppercase tracking-[0.4em] ml-3">
                 {{ requiresMedia ? 'Caption' : 'Message' }}
