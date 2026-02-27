@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://127.0.0.1:9091',
+    baseURL: 'http://127.0.0.1:9090',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -259,6 +259,400 @@ export const updatePhone = async (id, updateData) => {
  */
 export const deletePhone = async (id) => {
     const response = await api.delete(`/phones/${id}`);
+    return response.data;
+};
+
+/* =========================================
+   ACCOUNT TRANSFER (Updated to match new CRUD backend)
+   ========================================= */
+
+/**
+ * Generate unique batch ID
+ */
+export const generateBatchId = async () => {
+    const response = await api.get('/api/account-transfer/generate-batch-id');
+    return response.data;
+};
+
+/**
+ * Membuat batch transfer baru
+ * Step 1: Generate batch_id
+ * Step 2: Create batch transfers using the new CRUD endpoint
+ * @param {Object} batchData - { account_type, total_requested, batch_name, source_phones, target_phones }
+ */
+export const createTransferBatch = async (batchData) => {
+    // Generate batch ID jika tidak ada
+    let batchId;
+    if (!batchData.batch_name) {
+        const batchIdResponse = await generateBatchId();
+        batchId = batchIdResponse.batch_id;
+    } else {
+        batchId = batchData.batch_name;
+    }
+
+    // Create transfers array dari source & target phones
+    const transfers = [];
+    const pairs = Math.min(
+        batchData.source_phones?.length || 0,
+        batchData.target_phones?.length || 0
+    );
+
+    for (let i = 0; i < pairs; i++) {
+        transfers.push({
+            batch_id: batchId,
+            account_type: batchData.account_type,
+            source_phone_id: batchData.source_phones[i],
+            target_phone_id: batchData.target_phones[i]
+        });
+    }
+
+    // Create batch transfers
+    const response = await api.post('/api/account-transfer/transfers/batch', {
+        transfers: transfers
+    });
+
+    return {
+        data: {
+            batch_id: batchId,
+            transfers: response.data,
+            total: pairs
+        }
+    };
+};
+
+/**
+ * Mengambil semua transfer batches
+ * Backend baru tidak punya endpoint /batches langsung, jadi kita ambil semua transfers dan group by batch_id
+ * @param {Number} limit - Jumlah maksimal transfers yang ditampilkan
+ */
+export const getTransferBatches = async (limit = 100) => {
+    const response = await api.get('/api/account-transfer/transfers', {
+        params: { limit: limit }
+    });
+
+    // Group transfers by batch_id to create batch list
+    const transfersData = response.data;
+    const batches = {};
+
+    // Handle both array and paginated response (flexible for backend)
+    const transfersList = Array.isArray(transfersData) ? transfersData : (transfersData.items || []);
+
+    if (transfersList.length > 0) {
+        transfersList.forEach(transfer => {
+            const batchId = transfer.batch_id;
+            if (!batches[batchId]) {
+                batches[batchId] = {
+                    id: batchId,
+                    batch_name: batchId,
+                    total_requested: 0,
+                    total_success: 0,
+                    total_failed: 0,
+                    total_pending: 0,
+                    total_in_progress: 0,
+                    status: 'processing',
+                    created_at: transfer.created_at,
+                    updated_at: transfer.updated_at
+                };
+            }
+
+            batches[batchId].total_requested++;
+
+            if (transfer.status === 'completed') {
+                batches[batchId].total_success++;
+            } else if (transfer.status === 'failed') {
+                batches[batchId].total_failed++;
+            } else if (transfer.status === 'pending') {
+                batches[batchId].total_pending++;
+            } else if (transfer.status === 'processing' || transfer.status === 'waiting_otp') {
+                batches[batchId].total_in_progress++;
+            }
+
+            // Update latest timestamp
+            if (new Date(transfer.updated_at) > new Date(batches[batchId].updated_at)) {
+                batches[batchId].updated_at = transfer.updated_at;
+            }
+        });
+
+        // Determine batch status
+        Object.values(batches).forEach(batch => {
+            if (batch.total_success === batch.total_requested) {
+                batch.status = 'completed';
+            } else if (batch.total_success > 0 && batch.total_failed > 0) {
+                batch.status = 'partial_success';
+            } else if (batch.total_in_progress > 0) {
+                batch.status = 'processing';
+            }
+        });
+    }
+
+    return {
+        data: Object.values(batches).sort((a, b) =>
+            new Date(b.created_at) - new Date(a.created_at)
+        )
+    };
+};
+
+/**
+ * Mengambil progress batch dengan detail transfers menggunakan batch summary endpoint
+ * @param {String} batchId - Batch ID string
+ */
+export const getBatchProgress = async (batchId) => {
+    // Get batch summary
+    const summaryResponse = await api.get(`/api/account-transfer/batch/${batchId}/summary`);
+
+    // Get all transfers in this batch
+    const transfersResponse = await api.get(`/api/account-transfer/batch/${batchId}/transfers`);
+
+    // Combine data
+    const summary = summaryResponse.data;
+    const transfers = transfersResponse.data;
+
+    // Calculate progress_percentage
+    const totalCompleted = summary.completed + summary.failed;
+    const progressPercentage = summary.total > 0 ? (totalCompleted / summary.total) * 100 : 0;
+
+    return {
+        data: {
+            batch_name: summary.batch_id,
+            batch_id: summary.batch_id,
+            total_requested: summary.total,
+            total_success: summary.completed,
+            total_failed: summary.failed,
+            total_pending: summary.pending,
+            total_in_progress: summary.processing + summary.waiting_otp,
+            progress_percentage: progressPercentage,
+            status: totalCompleted === summary.total ?
+                (summary.failed > 0 ? 'partial_success' : 'completed') :
+                'processing',
+            transfers: transfers
+        }
+    };
+};
+
+/**
+ * Retry semua failed transfers dalam batch menggunakan endpoint baru
+ * @param {String} batchId - Batch ID string
+ */
+export const retryFailedTransfers = async (batchId) => {
+    const response = await api.post(`/api/account-transfer/batch/${batchId}/retry`);
+    return response.data;
+};
+
+/**
+ * Auto-discover phones untuk transfer
+ * Note: Backend baru tidak punya /auto-discover endpoint
+ * Kita akan menggunakan logika manual untuk discovery
+ * @param {Object} request - { account_type, count }
+ */
+export const autoDiscoverPhones = async (request) => {
+    // Get all phone banks
+    const phoneBanksResponse = await getPhoneBanks();
+    const phoneBanks = phoneBanksResponse.data || [];
+
+    const sourcePhonesWithAccount = [];
+    const targetPhonesWithoutAccount = [];
+
+    // Iterate through phone banks to find suitable devices
+    for (const phoneBank of phoneBanks) {
+        const phoneBankDetail = await getPhoneBank(phoneBank.id);
+        const phones = phoneBankDetail.data?.phones || phoneBankDetail.phones || [];
+
+        phones.forEach(phone => {
+            const hasAccount = phone.data?.versioning?.[request.account_type];
+            const isHealthy = phone.data?.status === 'HEALTHY';
+
+            if (isHealthy) {
+                if (hasAccount && sourcePhonesWithAccount.length < request.count) {
+                    sourcePhonesWithAccount.push(phone.device_id);
+                } else if (!hasAccount && targetPhonesWithoutAccount.length < request.count) {
+                    targetPhonesWithoutAccount.push(phone.device_id);
+                }
+            }
+        });
+
+        // Stop jika sudah cukup
+        if (sourcePhonesWithAccount.length >= request.count &&
+            targetPhonesWithoutAccount.length >= request.count) {
+            break;
+        }
+    }
+
+    const foundPairs = Math.min(sourcePhonesWithAccount.length, targetPhonesWithoutAccount.length);
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+
+    return {
+        data: {
+            found_pairs: foundPairs,
+            source_phones: sourcePhonesWithAccount.slice(0, foundPairs),
+            target_phones: targetPhonesWithoutAccount.slice(0, foundPairs),
+            batch_name: `#TRAN-${timestamp}-${request.account_type.toUpperCase()}-AUTO`
+        }
+    };
+};
+
+/**
+ * Validate phonebank transfer sebelum create (Rebalancing)
+ * @param {Object} data - { source_phonebank_id, target_phonebank_id, transfer_count, account_type }
+ */
+export const validatePhonebankTransfer = async (data) => {
+    const response = await api.post('/api/account-transfer/phonebank/validate', data);
+    return response.data;
+};
+
+/**
+ * Create simplified phonebank transfer
+ * @param {Object} data - { source_phonebank_id, target_phonebank_id, transfer_count, account_type }
+ */
+export const createPhonebankTransfer = async (data) => {
+    const response = await api.post('/api/account-transfer/phonebank/transfers', data);
+    return response.data;
+};
+
+/**
+ * Ambil semua account_transfers untuk Process Task popup
+ * @param {Object} params - { limit, skip, status }
+ */
+export const getProcessTaskList = async (params = {}) => {
+    const response = await api.get('/api/account-transfer/transfers', { params });
+    const data = response.data;
+    return Array.isArray(data) ? data : (data.items || data.transfers || []);
+};
+
+/**
+ * Ambil semua transfer batches langsung dari tabel transfer_batches
+ * @param {Object} params - { limit, skip }
+ */
+export const getTransferBatchesList = async (params = {}) => {
+    try {
+        // Coba endpoint khusus transfer-batches untuk data dari tabel transfer_batches
+        const response = await api.get('/api/account-transfer/transfer-batches', {
+            params: { limit: params.limit || 100, skip: params.skip || 0 }
+        });
+        const data = response.data;
+        return data.items || [];
+    } catch (err) {
+        // Fallback: group dari tabel account_transfers jika endpoint belum ada
+        const response = await api.get('/api/account-transfer/transfers', {
+            params: { limit: params.limit || 500, skip: params.skip || 0 }
+        });
+        const data = response.data;
+        const transfers = Array.isArray(data) ? data : (data.items || []);
+
+        const batchMap = {};
+        transfers.forEach(t => {
+            const bid = t.batch_id || 'unknown';
+            if (!batchMap[bid]) {
+                batchMap[bid] = {
+                    batch_name: bid,
+                    batch_id: bid,
+                    account_type: t.account_type,
+                    status: 'pending',
+                    created_at: t.created_at,
+                    updated_at: t.updated_at,
+                    total_requested: 0,
+                    total_success: 0, total_failed: 0, processing: 0, pending: 0
+                };
+            }
+            const b = batchMap[bid];
+            b.total_requested++;
+            if (t.status === 'completed') b.total_success++;
+            else if (t.status === 'failed') b.total_failed++;
+            else if (t.status === 'processing') b.processing++;
+            else b.pending++;
+            if (t.updated_at && new Date(t.updated_at) > new Date(b.updated_at)) b.updated_at = t.updated_at;
+        });
+
+        Object.values(batchMap).forEach(b => {
+            if (b.total_success === b.total_requested) b.status = 'completed';
+            else if (b.total_failed > 0 && b.total_success > 0) b.status = 'partial_success';
+            else if (b.processing > 0) b.status = 'processing';
+            else b.status = 'pending';
+        });
+
+        return Object.values(batchMap).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+};
+
+/**
+ * Get Batch Log Running Transfers 
+ */
+
+export const getBatchLog = async (batch) => {
+    try {
+        const batchId = batch.batch_name;
+        console.log("idbatch : "+ batchId)
+        const response = await api.get(`api/account-transfer/logs/${batchId}/show`);
+
+        console.log("Response Full:", response);
+        // Jika backend kirim teks biasa, kita split per baris, balikkan, lalu gabung lagi
+        console.log("Status", !response.status == 200 || !response.statusText == "OK");
+        console.log("StatusText",!response.statusText == "OK")
+        if (!response.status == 200) {
+            // Menangani error jika file tidak ditemukan (404)
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Gagal mengambil log");
+        }
+        console.log("Sampe sini nih")
+        const data = response.data;
+
+        console.log(
+            "Hasilnya",
+            data
+        )
+        const descendingContent = data.content
+            .split('\n')
+            .reverse()
+            .join('\n');
+
+        return { ...data, content: descendingContent }; // Mengembalikan object { batch_id, filename, content }
+    }catch (err) {
+
+    }
+}
+
+
+
+
+/**
+ * Execute satu batch transfer via executor by batch_name (string)
+ * @param {String} batchName - batch_name dari transfer_batches
+ */
+export const executeTransferBatch = async (batchName) => {
+    const response = await api.post(`/api/account-transfer/executor/run-by-name/${encodeURIComponent(batchName)}`);
+    return response.data;
+};
+
+/**
+ * Execute semua batch yang berstatus 'processing'
+ */
+export const executeAllTransferBatches = async () => {
+    const response = await api.post('/api/account-transfer/executor/run');
+    return response.data;
+};
+
+
+
+/**
+ * Retry single transfer yang failed
+ * @param {Number} transferId - ID transfer
+ */
+export const retrySingleTransfer = async (transferId) => {
+    const response = await api.post(`/api/account-transfer/transfers/${transferId}/retry`);
+    return response.data;
+};
+
+/* =========================================
+   TASK EXPORT
+   ========================================= */
+
+/**
+ * Export all tasks to Excel file
+ * Backend akan export semua tasks tanpa limit
+ */
+export const exportTasksToExcel = async () => {
+    const response = await api.get('/tasks/export-excel', {
+        responseType: 'blob' // Important untuk download file
+    });
     return response.data;
 };
 

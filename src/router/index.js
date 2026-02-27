@@ -6,6 +6,7 @@ import TaskScheduler from '../views/TaskScheduler.vue';
 import NotificationCenter from '../views/NotificationCenter.vue';
 import PhoneBank from '../views/PhoneBank.vue';
 import Phones from '../views/Phones.vue';
+import AccountTransfer from '../views/AccountTransfer.vue';
 import LoginView from '../views/LoginView.vue';
 import { useAuthStore } from '../stores/auth';
 
@@ -64,6 +65,12 @@ const routes = [
         path: '/phones',
         name: 'phones',
         component: Phones,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/account-transfer',
+        name: 'account-transfer',
+        component: AccountTransfer,
         meta: { requiresAuth: true }
     }
 ];

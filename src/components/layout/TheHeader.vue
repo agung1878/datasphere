@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, Settings, User, LogOut, ChevronDown, Menu, X, Play, CalendarRange } from 'lucide-vue-next';
+import { Bell, Settings, User, LogOut, ChevronDown, Menu, X, Play, CalendarRange, ArrowRightLeft } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useDashboardStore } from '@/stores/dashboard';
 import NotificationWidget from '@/components/dashboard/NotificationWidget.vue';
@@ -26,6 +26,11 @@ const goDashboard = () => router.push('/');
 const goScheduler = () => {
   closeAllMenus();
   router.push('/scheduler');
+};
+
+const goTransferAccount = () => {
+  closeAllMenus();
+  router.push('/account-transfer');
 };
 
 const handleLogout = () => {
@@ -140,6 +145,10 @@ onUnmounted(() => {
               <button @click="goScheduler" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-xl transition-all group">
                 <CalendarRange class="w-4 h-4" />
                 <span class="uppercase tracking-widest">Task Scheduler</span>
+              </button>
+              <button @click="goTransferAccount" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-xl transition-all group">
+                <ArrowRightLeft class="w-4 h-4" />
+                <span class="uppercase tracking-widest">Account Transfer</span>
               </button>
             </div>
           </div>
