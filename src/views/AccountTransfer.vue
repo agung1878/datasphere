@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted,watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   Plus, RefreshCw, Search, CheckCircle, ArrowRightLeft, 
@@ -43,6 +43,12 @@ const executeResultMsg = ref('');
 const showLogDetail = ref(false);
 const selectedLogData = ref(null);
 
+// ─── Polling intervals ─────────────────────────────────────────────────────
+let batchPollInterval = null;   // refresh batch list setiap N detik
+let logPollInterval   = null;   // refresh log detail setiap N detik
+const BATCH_POLL_MS   = 5000;   // 5 detik
+const LOG_POLL_MS     = 3000;   // 3 detik
+
 const filteredBatchList = computed(() => {
   let list = batchList.value;
   console.log(list)
@@ -60,17 +66,29 @@ const filteredBatchList = computed(() => {
 });
 
 
+// ─── Fetch batch list (dipanggil manual & oleh polling) ───────────────────
+const fetchBatchList = async () => {
+  try {
+    batchList.value = await getTransferBatchesList({ limit: 100 });
+  } catch (e) {
+    batchList.value = [];
+  }
+};
+
 // === Process Task Modal ===
 const openProcessTask = async () => {
   showProcessTask.value = true;
   processTaskLoading.value = true;
   executeResultMsg.value = '';
   try {
-    batchList.value = await getTransferBatchesList({ limit: 100 });
-  } catch (e) {
-    batchList.value = [];
+    await fetchBatchList();
   } finally {
     processTaskLoading.value = false;
+  }
+
+  // ── Mulai polling batch list ──────────────────────────────────────────────
+  if (!batchPollInterval) {
+    batchPollInterval = setInterval(fetchBatchList, BATCH_POLL_MS);
   }
 };
 
@@ -79,31 +97,53 @@ const closeProcessTask = () => {
   processTaskSearch.value = '';
   processTaskDateFilter.value = '';
   executeResultMsg.value = '';
+
+  // ── Stop polling batch list ───────────────────────────────────────────────
+  if (batchPollInterval) {
+    clearInterval(batchPollInterval);
+    batchPollInterval = null;
+  }
 };
 
 // ==== Open log modal ====
 
+const fetchLogContent = async (batch) => {
+  try {
+    const result = await getBatchLog(batch);
+    logList.value = result;
+
+    // Update batch_id header jika belum di-set
+    if (!selectedLogData.value) {
+      selectedLogData.value = {
+        batch_id: result?.batch_id ? String(result.batch_id) : String(batch.batch_name),
+        source_ip: batch.source_ip,
+        target_ip: batch.target_ip,
+        source_device: batch.source_device,
+        target_device: batch.target_device,
+      };
+    }
+  } catch (e) {
+    console.error("Gagal fetch logs:", e);
+    if (!logList.value?.content) {
+      logList.value = { content: "" };
+    }
+  }
+};
+
 const openLogDetail = async (batch) => {
   showLogDetail.value = true;
   processTaskLoading.value = true;
-  
-  try {
-    const result = await getBatchLog(batch);
-    logList.value = result; 
+  selectedLogData.value = null;
 
-    selectedLogData.value = {
-      // Paksa batch_id menjadi string
-      batch_id: result.batch_id ? String(result.batch_id) : String(batch.batch_name),
-      source_ip: batch.source_ip,
-      target_ip: batch.target_ip,
-      source_device: batch.source_device,
-      target_device: batch.target_device,
-    };
-  } catch (e) {
-    console.error("Gagal fetch logs:", e);
-    logList.value = { content: "" };
+  try {
+    await fetchLogContent(batch);
   } finally {
     processTaskLoading.value = false;
+  }
+
+  // ── Mulai polling log ─────────────────────────────────────────────────────
+  if (!logPollInterval) {
+    logPollInterval = setInterval(() => fetchLogContent(batch), LOG_POLL_MS);
   }
 };
 
@@ -113,6 +153,12 @@ const closeLogDetail = () => {
   processTaskSearch.value = '';
   processTaskDateFilter.value = '';
   executeResultMsg.value = '';
+
+  // ── Stop polling log ──────────────────────────────────────────────────────
+  if (logPollInterval) {
+    clearInterval(logPollInterval);
+    logPollInterval = null;
+  }
 };
 
 const formattedLogs = computed(() => {
@@ -167,7 +213,7 @@ const executeBatch = async (batchName) => {
   try {
     const res = await executeTransferBatch(batchName);
     executeResultMsg.value = res.message || `Batch '${batchName}' berhasil dijalankan!`;
-    await openProcessTask();
+    await fetchBatchList();
   } catch (e) {
     executeResultMsg.value = e?.response?.data?.detail || `Gagal menjalankan batch '${batchName}'`;
   } finally {
@@ -182,7 +228,7 @@ const executeAll = async () => {
   try {
     const res = await executeAllTransferBatches();
     executeResultMsg.value = res.message || 'Semua batch sedang diproses!';
-    await openProcessTask();
+    await fetchBatchList();
   } catch (e) {
     executeResultMsg.value = e?.response?.data?.detail || 'Gagal menjalankan semua batch';
   } finally {
@@ -607,7 +653,14 @@ const closeModal = () => {
 
 const goBack = () => router.push('/');
 
+// ─── Lifecycle ─────────────────────────────────────────────────────────────
 onMounted(fetchInitialData);
+
+// Bersihkan semua interval saat komponen di-unmount (pindah halaman)
+onUnmounted(() => {
+  if (batchPollInterval) clearInterval(batchPollInterval);
+  if (logPollInterval)   clearInterval(logPollInterval);
+});
 </script>
 
 <template>
