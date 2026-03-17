@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   Plus, RefreshCw, Search, CheckCircle, ArrowRightLeft, 
@@ -48,6 +48,30 @@ let batchPollInterval = null;   // refresh batch list setiap N detik
 let logPollInterval   = null;   // refresh log detail setiap N detik
 const BATCH_POLL_MS   = 5000;   // 5 detik
 const LOG_POLL_MS     = 3000;   // 3 detik
+
+// ─── Auto-scroll log terminal ──────────────────────────────────────────────
+const logScrollEl    = ref(null);   // ref ke elemen scroll log terminal
+const isScrollPaused = ref(false);  // true = user scroll ke atas (auto-scroll paused)
+
+const scrollToBottom = () => {
+  const el = logScrollEl.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+};
+
+// Deteksi apakah user sudah scroll meninggalkan bottom (toleransi 40px)
+const onLogScroll = () => {
+  const el = logScrollEl.value;
+  if (!el) return;
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  isScrollPaused.value = distanceFromBottom > 40;
+};
+
+// Resume: scroll ke bawah + aktifkan auto-scroll kembali
+const resumeScroll = () => {
+  isScrollPaused.value = false;
+  scrollToBottom();
+};
 
 const filteredBatchList = computed(() => {
   let list = batchList.value;
@@ -134,6 +158,7 @@ const openLogDetail = async (batch) => {
   showLogDetail.value = true;
   processTaskLoading.value = true;
   selectedLogData.value = null;
+  isScrollPaused.value = false;  // ← reset: mulai dengan auto-scroll aktif
 
   try {
     await fetchLogContent(batch);
@@ -160,6 +185,13 @@ const closeLogDetail = () => {
     logPollInterval = null;
   }
 };
+
+// Auto-scroll ke bawah setiap kali log bertambah (hanya jika tidak di-pause user)
+watch(formattedLogs, async () => {
+  if (isScrollPaused.value) return;
+  await nextTick();
+  scrollToBottom();
+});
 
 const formattedLogs = computed(() => {
   // logList.value sekarang adalah Object { content: "...", ... }
@@ -1351,7 +1383,34 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div class="flex-1 p-6 font-mono text-[12px] overflow-y-auto custom-scrollbar bg-[#020617]">
+          <!-- wrapper relative untuk posisi floating button -->
+          <div class="relative flex-1 flex flex-col min-h-0">
+
+          <!-- ── Floating Resume Scroll button ───────────────────────────────── -->
+          <Transition
+            enter-active-class="transition-all duration-300 ease-out"
+            enter-from-class="opacity-0 translate-y-4 scale-95"
+            enter-to-class="opacity-100 translate-y-0 scale-100"
+            leave-active-class="transition-all duration-200 ease-in"
+            leave-from-class="opacity-100 translate-y-0 scale-100"
+            leave-to-class="opacity-0 translate-y-4 scale-95"
+          >
+            <button
+              v-if="isScrollPaused"
+              @click="resumeScroll"
+              class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-black tracking-wider uppercase shadow-[0_0_20px_rgba(6,182,212,0.4)] bg-cyan-500/20 border border-cyan-400/60 text-cyan-300 hover:bg-cyan-500/40 hover:text-white backdrop-blur-sm transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+              </svg>
+              Resume Scroll
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </Transition>
+
+          <div ref="logScrollEl" @scroll="onLogScroll" class="flex-1 p-6 font-mono text-[12px] overflow-y-auto custom-scrollbar bg-[#020617]">
             
             <div v-if="processTaskLoading" class="flex items-center gap-3 text-cyan-400/70 py-4 italic">
               <div class="animate-spin h-3 w-3 border-2 border-cyan-400 border-t-transparent rounded-full"></div>
@@ -1407,6 +1466,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          </div><!-- end wrapper relative -->
 
           <div class="px-8 py-3 bg-slate-900/20 border-t border-white/5 text-[10px] text-gray-500 flex justify-between items-center font-mono">
             <div class="flex items-center gap-4">
