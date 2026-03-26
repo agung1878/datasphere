@@ -187,12 +187,6 @@ const closeLogDetail = () => {
 };
 
 // Auto-scroll ke bawah setiap kali log bertambah (hanya jika tidak di-pause user)
-watch(formattedLogs, async () => {
-  if (isScrollPaused.value) return;
-  await nextTick();
-  scrollToBottom();
-});
-
 const formattedLogs = computed(() => {
   // logList.value sekarang adalah Object { content: "...", ... }
   // Kita ambil content-nya, jika tidak ada (null/undefined), gunakan string kosong
@@ -225,6 +219,14 @@ const formattedLogs = computed(() => {
     return { isStructured: false, message: line };
   }).filter(log => log.message.trim() !== ''); // Buang baris kosong
 });
+
+watch(formattedLogs, async () => {
+  if (isScrollPaused.value) return;
+  await nextTick();
+  scrollToBottom();
+});
+
+
 
 // ==== Open logs ====
 
