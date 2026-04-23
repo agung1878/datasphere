@@ -119,7 +119,7 @@ const handleCreate = async () => {
     await createPhoneBank(formData.value);
     showCreateModal.value = false;
     resetForm();
-    await fetchPhoneBanks();
+    window.location.reload();
   } catch (err) {
     error.value = err.response?.data?.detail || 'Failed to create phone bank';
     console.error('Error creating phone bank:', err);
@@ -131,6 +131,18 @@ const handleCreate = async () => {
 // Edit phone bank
 const openEditModal = (phoneBank) => {
   selectedPhoneBank.value = phoneBank;
+  
+  // Populate institution form
+  const institution = institutions.value.find(i => i.id === phoneBank.institution_id);
+  if (institution) {
+    institutionForm.value = {
+      name: institution.name || '',
+      parent_id: institution.parent_id || '',
+      latitude: institution.latitude || null,
+      longitude: institution.longitude || null
+    };
+  }
+
   formData.value = {
     institution_id: phoneBank.institution_id,
     type: phoneBank.type || '',
@@ -139,7 +151,7 @@ const openEditModal = (phoneBank) => {
     version: phoneBank.version || '',
     auto_update: phoneBank.auto_update ?? true,
     username: phoneBank.username || '',
-    password: phoneBank.password || ''
+    password: ''
   };
   showEditModal.value = true;
 };
@@ -149,29 +161,21 @@ const handleEdit = async () => {
   
   try {
     loading.value = true;
-    console.log(institutionForm.value)
-    console.log(formData.value)
-
+    
+    // Ensure numeric values are correctly typed
     institutionForm.value.latitude = institutionForm.value.latitude || null;
     institutionForm.value.longitude = institutionForm.value.longitude || null;
 
-    const institutionResponse = await updateInstitution(institutionForm.value);
-    console.log('ID Institusi Baru:', institutionResponse.data?.id);
-    const newId = institutionResponse.data?.id;
-    if (!newId) {
-      throw new Error("Gagal mendapatkan ID Institusi");
-    }
-    formData.value = {
-      ...formData.value,
-      institution_id: newId
-    };
-
-    formData.institution_id = institutionResponse.data.id;
+    // Update the associated institution
+    await updateInstitution(selectedPhoneBank.value.institution_id, institutionForm.value);
+    
+    // Update the phone bank itself
     await updatePhoneBank(selectedPhoneBank.value.id, formData.value);
+    
     showEditModal.value = false;
     resetForm();
     selectedPhoneBank.value = null;
-    await fetchPhoneBanks();
+    window.location.reload();
   } catch (err) {
     error.value = err.response?.data?.detail || 'Failed to update phone bank';
     console.error('Error updating phone bank:', err);
@@ -191,10 +195,20 @@ const handleDelete = async () => {
   
   try {
     loading.value = true;
+    const institutionId = selectedPhoneBank.value.institution_id;
+    
+    // Delete the phone bank first
     await deletePhoneBank(selectedPhoneBank.value.id);
+    
+    // Then delete the associated institution
+    if (institutionId) {
+      await deleteInstitution(institutionId);
+    }
+    
     showDeleteModal.value = false;
     selectedPhoneBank.value = null;
     await fetchPhoneBanks();
+    await fetchInstitutions(); // Refresh institutions list
   } catch (err) {
     error.value = err.response?.data?.detail || 'Failed to delete phone bank';
     console.error('Error deleting phone bank:', err);
