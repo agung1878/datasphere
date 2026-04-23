@@ -169,6 +169,51 @@ export const updateApk = async (phoneBankId, type) => {
 };
 
 /* =========================================
+   INSTITUTION CRUD
+   ========================================= */
+
+/**
+ * Mengambil semua Institution
+ */
+export const getInstitutions = async () => {
+    const response = await api.get('/institutions');
+    return response.data;
+};
+
+/**
+ * Mengambil Institutions berdasarkan ID (sudah ada di atas, tapi untuk konsistensi)
+ * export const getInstitutions sudah didefinisikan di line 54
+ */
+
+/**
+ * Membuat Institutions baru
+ * @param {Object} phoneBankData - Data untuk Institutions baru
+ */
+export const createInstitution = async (institutionData) => {
+    const response = await api.post('/institutions', institutionData);
+    return response.data;
+};
+
+/**
+ * Mengupdate Institutions
+ * @param {String} id - ID Institutions
+ * @param {Object} updateData - Data yang akan diupdate
+ */
+export const updateInstitution = async (id, updateData) => {
+    const response = await api.put(`/institutions/${id}`, updateData);
+    return response.data;
+};
+
+/**
+ * Menghapus Institutions
+ * @param {String} id - ID Institutions
+ */
+export const deleteInstitution = async (id) => {
+    const response = await api.delete(`/institutions/${id}`);
+    return response.data;
+};
+
+/* =========================================
    PHONE BANK CRUD
    ========================================= */
 
@@ -208,6 +253,7 @@ export const updatePhoneBank = async (id, updateData) => {
  * Menghapus Phone Bank
  * @param {String} id - ID Phone Bank
  */
+
 export const deletePhoneBank = async (id) => {
     const response = await api.delete(`/phone-banks/${id}`);
     return response.data;
