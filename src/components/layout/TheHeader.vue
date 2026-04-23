@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, Settings, User, LogOut, ChevronDown, Menu, X, Play, CalendarRange, ArrowRightLeft } from 'lucide-vue-next';
+import { Bell, Settings, User, LogOut, ChevronDown, Menu, X, Play, CalendarRange, ArrowRightLeft, Landmark } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useDashboardStore } from '@/stores/dashboard';
 import NotificationWidget from '@/components/dashboard/NotificationWidget.vue';
@@ -31,6 +31,11 @@ const goScheduler = () => {
 const goTransferAccount = () => {
   closeAllMenus();
   router.push('/account-transfer');
+};
+
+const goPhonebank = () => {
+  closeAllMenus();
+  router.push('/phone-banks');
 };
 
 const handleLogout = () => {
@@ -149,6 +154,10 @@ onUnmounted(() => {
               <button @click="goTransferAccount" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-xl transition-all group">
                 <ArrowRightLeft class="w-4 h-4" />
                 <span class="uppercase tracking-widest">Account Transfer</span>
+              </button>
+              <button @click="goPhonebank" class="w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold text-gray-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-xl transition-all group">
+                <Landmark class="w-4 h-4" />
+                <span class="uppercase tracking-widest">Phone Bank</span>
               </button>
             </div>
           </div>

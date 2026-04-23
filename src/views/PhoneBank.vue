@@ -11,6 +11,11 @@ import {
   createPhoneBank, 
   updatePhoneBank, 
   deletePhoneBank,
+
+  getInstitutions,
+  createInstitution,
+  updateInstitution,
+  deleteInstitution,
   getDashboard
 } from '@/services/api';
 
@@ -42,6 +47,13 @@ const formData = ref({
   password: ''
 });
 
+const institutionForm = ref({
+  name: '',
+  parent_id: null,
+  longitude: null,
+  latitude: null,
+});
+
 // Reset form
 const resetForm = () => {
   formData.value = {
@@ -64,7 +76,6 @@ const fetchPhoneBanks = async () => {
   try {
     const response = await getPhoneBanks();
     phoneBanks.value = response.data || [];
-    console.log('Phone banks:', phoneBanks.value);
   } catch (err) {
     error.value = err.message || 'Failed to fetch phone banks';
     console.error('Error fetching phone banks:', err);
@@ -76,9 +87,8 @@ const fetchPhoneBanks = async () => {
 // Fetch institutions
 const fetchInstitutions = async () => {
   try {
-    const response = await getDashboard();
-    institutions.value = response.data?.institutions || [];
-    console.log('Institutions:', institutions.value);
+    const response = await getInstitutions();
+    institutions.value = response?.data || [];
   } catch (err) {
     console.error('Error fetching institutions:', err);
   }
@@ -88,6 +98,24 @@ const fetchInstitutions = async () => {
 const handleCreate = async () => {
   try {
     loading.value = true;
+    console.log(institutionForm.value)
+    console.log(formData.value)
+
+    institutionForm.value.latitude = institutionForm.value.latitude || null;
+    institutionForm.value.longitude = institutionForm.value.longitude || null;
+
+    const institutionResponse = await createInstitution(institutionForm.value);
+    console.log('ID Institusi Baru:', institutionResponse.data?.id);
+    const newId = institutionResponse.data?.id;
+    if (!newId) {
+      throw new Error("Gagal mendapatkan ID Institusi");
+    }
+    formData.value = {
+      ...formData.value,
+      institution_id: newId
+    };
+
+    formData.institution_id = institutionResponse.data.id;
     await createPhoneBank(formData.value);
     showCreateModal.value = false;
     resetForm();
@@ -121,6 +149,24 @@ const handleEdit = async () => {
   
   try {
     loading.value = true;
+    console.log(institutionForm.value)
+    console.log(formData.value)
+
+    institutionForm.value.latitude = institutionForm.value.latitude || null;
+    institutionForm.value.longitude = institutionForm.value.longitude || null;
+
+    const institutionResponse = await updateInstitution(institutionForm.value);
+    console.log('ID Institusi Baru:', institutionResponse.data?.id);
+    const newId = institutionResponse.data?.id;
+    if (!newId) {
+      throw new Error("Gagal mendapatkan ID Institusi");
+    }
+    formData.value = {
+      ...formData.value,
+      institution_id: newId
+    };
+
+    formData.institution_id = institutionResponse.data.id;
     await updatePhoneBank(selectedPhoneBank.value.id, formData.value);
     showEditModal.value = false;
     resetForm();
@@ -160,6 +206,7 @@ const handleDelete = async () => {
 // Get institution name by ID
 const getInstitutionName = (institutionId) => {
   const institution = institutions.value.find(i => i.id === institutionId);
+  // console.log("ID = " + institutionId + " Nama Institusinya" + institution?.name)
   return institution?.name || 'Unknown';
 };
 
@@ -506,22 +553,57 @@ onMounted(() => {
     </div>
   </div>
 
+<!-- Add Phone bank Modal -->
   <!-- Create Modal -->
   <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <div class="bg-[#040D2A] border-2 border-[#082282] rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
       <h2 class="text-2xl font-bold text-white mb-6">Add New Phone Bank</h2>
       
       <div class="space-y-4">
-        <!-- Institution -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-300 mb-2">Institution *</label>
-          <select 
-            v-model="formData.institution_id" 
-            class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all"
-            required>
-            <option value="">Select Institution</option>
-            <option v-for="inst in institutions" :key="inst.id" :value="inst.id">{{ inst.name }}</option>
-          </select>
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Parent Institution -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Parent Institution *</label>
+            <select 
+              v-model="institutionForm.parent_id" 
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all"
+              required>
+              <option value="">Select Institution</option>
+              <option v-for="inst in institutions" :key="inst.id" :value="inst.id">{{ inst.name }}</option>
+            </select>
+          </div>
+
+          <!-- Phonebank Name -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Phonebank Name *</label>
+            <input 
+              v-model="institutionForm.name" 
+              type="text" 
+              placeholder="e.g., Phonebank 1"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Longitude -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Longitude</label>
+            <input 
+              v-model="institutionForm.longitude" 
+              type="text" 
+              placeholder="106.960032"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
+
+          <!-- Latitude -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Latitude</label>
+            <input 
+              v-model.number="institutionForm.latitude" 
+              type="text" 
+              placeholder="-6.260813"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -531,7 +613,7 @@ onMounted(() => {
             <input 
               v-model="formData.type" 
               type="text" 
-              placeholder="e.g., Primary, Secondary"
+              placeholder="e.g., Xplorer"
               class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
           </div>
 
@@ -616,7 +698,7 @@ onMounted(() => {
         </button>
         <button 
           @click="handleCreate"
-          :disabled="loading || !formData.institution_id"
+          :disabled="loading || !formData.username || !formData.password || !institutionForm.name"
           class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           {{ loading ? 'Creating...' : 'Create Phone Bank' }}
         </button>
@@ -624,22 +706,57 @@ onMounted(() => {
     </div>
   </div>
 
+<!--Edit Phonebank Modal -->
   <!-- Edit Modal -->
   <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <div class="bg-[#040D2A] border-2 border-[#082282] rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
       <h2 class="text-2xl font-bold text-white mb-6">Edit Phone Bank</h2>
       
       <div class="space-y-4">
-        <!-- Institution -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-300 mb-2">Institution *</label>
-          <select 
-            v-model="formData.institution_id" 
-            class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all"
-            required>
-            <option value="">Select Institution</option>
-            <option v-for="inst in institutions" :key="inst.id" :value="inst.id">{{ inst.name }}</option>
-          </select>
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Parent Institution -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Parent Institution *</label>
+            <select 
+              v-model="institutionForm.parent_id" 
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all"
+              required>
+              <option value="">Select Institution</option>
+              <option v-for="inst in institutions" :key="inst.id" :value="inst.id">{{ inst.name }}</option>
+            </select>
+          </div>
+
+          <!-- Phonebank Name -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Phonebank Name *</label>
+            <input 
+              v-model="institutionForm.name" 
+              type="text" 
+              placeholder="e.g., Phonebank 1"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Longitude -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Longitude</label>
+            <input 
+              v-model="institutionForm.longitude" 
+              type="text" 
+              placeholder="106.960032"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
+
+          <!-- Latitude -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2">Latitude</label>
+            <input 
+              v-model.number="institutionForm.latitude" 
+              type="text" 
+              placeholder="-6.260813"
+              class="w-full bg-slate-800/50 border border-blue-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all">
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -742,6 +859,7 @@ onMounted(() => {
     </div>
   </div>
 
+<!-- Confirm Popup Delete -->
   <!-- Delete Confirmation Modal -->
   <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <div class="bg-[#040D2A] border-2 border-red-500/30 rounded-2xl p-6 w-full max-w-md">
