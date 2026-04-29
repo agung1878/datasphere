@@ -1,27 +1,33 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick,toRaw } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   Plus, RefreshCw, Search, CheckCircle, ArrowRightLeft, 
-  Server, Wifi, Trash2, X, ArrowLeft
+  Server, Wifi, Trash2, X, ArrowLeft, Power, Volume2, Volume1
 } from 'lucide-vue-next';
 import { 
   getPhoneBanks, 
   getPhoneBank, 
+  getCountTransferBatch,
   validatePhonebankTransfer,
   createPhonebankTransfer,
   getProcessTaskList,
   getTransferBatchesList,
   getBatchLog,
+  getBatchProgress,
   executeTransferBatch,
-  executeAllTransferBatches
+  executeAllTransferBatches,
+  getScrcpyStreamUrl,
+  getProxyDevices
 } from '@/services/api';
+import socket from '@/services/socket';
 import CustomSelect from '@/components/CustomSelect.vue';
 
 const router = useRouter();
 
 // --- STATE ---
 const phoneBanks = ref([]);
+const countTransfer = ref(null);
 const sourceDevicesOptions = ref([]); // Pastikan selalu array
 const sourceNumbers = ref([]);        // Daftar nomor mentah dari API
 const selectedNumbers = ref([]);       // Nomor yang dipilih user (Multiple)
@@ -34,6 +40,10 @@ const error = ref(null);
 const showProcessTask = ref(false);
 const batchList = ref([]);             // data batch dari API
 const logList = ref([]);
+const sourceLogList = ref([]);         // Log khusus source
+const targetLogList = ref([]);         // Log khusus target
+const sourceStreamUrl = ref('');       // URL Scrcpy Source
+const targetStreamUrl = ref('');       // URL Scrcpy Target
 const processTaskLoading = ref(false);
 const processTaskSearch = ref('');
 const processTaskDateFilter = ref('');
@@ -42,12 +52,13 @@ const executeAllLoading = ref(false);
 const executeResultMsg = ref('');
 const showLogDetail = ref(false);
 const selectedLogData = ref(null);
+const currentLogTab = ref('split'); // 'global' | 'split'
 
 // ─── Polling intervals ─────────────────────────────────────────────────────
 let batchPollInterval = null;   // refresh batch list setiap N detik
 let logPollInterval   = null;   // refresh log detail setiap N detik
 const BATCH_POLL_MS   = 5000;   // 5 detik
-const LOG_POLL_MS     = 3000;   // 3 detik
+const LOG_POLL_MS     = 2000;   // 2 detik (lebih cepat untuk realtime feel)
 
 // ─── Auto-scroll log terminal ──────────────────────────────────────────────
 const logScrollEl    = ref(null);   // ref ke elemen scroll log terminal
@@ -75,7 +86,6 @@ const resumeScroll = () => {
 
 const filteredBatchList = computed(() => {
   let list = batchList.value;
-  console.log(list)
   const q = processTaskSearch.value.toLowerCase().trim();
   if (q) {
     list = list.filter(b =>
@@ -133,42 +143,147 @@ const closeProcessTask = () => {
 
 const fetchLogContent = async (batch) => {
   try {
-    const result = await getBatchLog(batch);
-    logList.value = result;
+    const [result, srcResult, tgtResult] = await Promise.all([
+      getBatchLog(batch, "global"),
+      getBatchLog(batch, "source"),
+      getBatchLog(batch, "target")
+    ]);
 
-    // Update batch_id header jika belum di-set
-    if (!selectedLogData.value) {
-      selectedLogData.value = {
-        batch_id: result?.batch_id ? String(result.batch_id) : String(batch.batch_name),
-        source_ip: batch.source_ip,
-        target_ip: batch.target_ip,
-        source_device: batch.source_device,
-        target_device: batch.target_device,
-      };
+    logList.value = result;
+    sourceLogList.value = srcResult;
+    targetLogList.value = tgtResult;
+
+    // Pastikan selectedLogData sudah terinisialisasi
+    if (selectedLogData.value) {
+      const sId = selectedLogData.value.source_device;
+      const tId = selectedLogData.value.target_device;
+
+      // Hanya cari jika ID device bukan "Loading..."
+      if (sId && sId !== "Loading...") {
+        const foundSource = phoneBanks.value.find(pb => 
+          pb.phones.some(p => String(p.device_id) === String(sId))
+        );
+        if (foundSource) selectedLogData.value.source_ip = foundSource.ip;
+      }
+
+      if (tId && tId !== "Loading...") {
+        const foundTarget = phoneBanks.value.find(pb => 
+          pb.phones.some(p => String(p.device_id) === String(tId))
+        );
+        if (foundTarget) selectedLogData.value.target_ip = foundTarget.ip;
+      }
     }
   } catch (e) {
     console.error("Gagal fetch logs:", e);
-    if (!logList.value?.content) {
-      logList.value = { content: "" };
-    }
   }
 };
 
 const openLogDetail = async (batch) => {
   showLogDetail.value = true;
   processTaskLoading.value = true;
-  selectedLogData.value = null;
-  isScrollPaused.value = false;  // ← reset: mulai dengan auto-scroll aktif
+  
+  // --- INISIALISASI DATA DEFAULT (Agar tidak null) ---
+  selectedLogData.value = {
+    batch_id: batch.batch_id || batch.batch_name,
+    batch_name: batch.batch_name || batch.batch_id,
+    source_device: batch.source_device || "Loading...",
+    target_device: batch.target_device || "Loading...",
+    source_ip: batch.source_ip || "Searching...",
+    target_ip: batch.target_ip || "Searching...",
+    status: batch.status || 'processing',
+    progress_percentage: batch.progress_percentage || 0,
+    total_requested: batch.total_requested || 0,
+    total_success: batch.total_success || 0,
+    total_failed: batch.total_failed || 0,
+    transfers: [] // Default array kosong sesuai struktur data kamu
+  };
+
+  isScrollPaused.value = false;
+  currentLogTab.value = 'split';
 
   try {
+    sourceLogList.value = [];
+    targetLogList.value = [];
+
+    // Jalankan fetch log global/src/tgt
     await fetchLogContent(batch);
+
+    // Ambil detail progress (transfers array)
+    const result = await getBatchProgress(selectedLogData.value.batch_id);
+    
+    if (result.data) {
+      const data = result.data;
+      
+      // Update selectedLogData dengan data detail terbaru dari API
+      selectedLogData.value = {
+        ...selectedLogData.value, // Pertahankan data lama jika ada
+        ...data,                  // Masukkan data dari API (status, progress, transfers)
+      };
+
+      if (data.transfers && data.transfers.length > 0) {
+        const firstTransfer = data.transfers[0];
+        
+        // Sekarang aman mengisi source_device tanpa "IF" karena objek sudah di-init di atas
+        selectedLogData.value.source_device = firstTransfer.source_phone_id;
+        selectedLogData.value.target_device = firstTransfer.target_phone_id;
+
+        const sPb = phoneBanks.value.find(pb => 
+          pb.phones.some(p => String(p.device_id) === String(firstTransfer.source_phone_id))
+        );
+        const tPb = phoneBanks.value.find(pb => 
+          pb.phones.some(p => String(p.device_id) === String(firstTransfer.target_phone_id))
+        );
+
+        if (sPb) selectedLogData.value.source_ip = sPb.ip;
+        if (tPb) selectedLogData.value.target_ip = tPb.ip;
+
+        // Trigger Scrcpy Stream secara async
+        getScrcpyStreamUrl(firstTransfer.source_phone_id)
+          .then(res => sourceStreamUrl.value = res.stream_url)
+          .catch(() => {});
+          
+        getScrcpyStreamUrl(firstTransfer.target_phone_id)
+          .then(res => targetStreamUrl.value = res.stream_url)
+          .catch(() => {});
+          
+        // Emit socket connect
+        socket.emit('scrcpy_connect', { device_id: firstTransfer.source_phone_id });
+        socket.emit('scrcpy_connect', { device_id: firstTransfer.target_phone_id });
+      }
+    }
+  } catch (err) {
+    console.error("Gagal memuat detail log:", err);
   } finally {
     processTaskLoading.value = false;
   }
 
-  // ── Mulai polling log ─────────────────────────────────────────────────────
+  // Mulai polling
   if (!logPollInterval) {
     logPollInterval = setInterval(() => fetchLogContent(batch), LOG_POLL_MS);
+  }
+};
+
+const refreshSourceStream = async () => {
+  if (!selectedLogData.value?.source_device) return;
+  try {
+    const res = await getScrcpyStreamUrl(selectedLogData.value.source_device);
+    // Force refresh by adding timestamp to fragment
+    sourceStreamUrl.value = `${res.stream_url}&_t=${Date.now()}`;
+    socket.emit('scrcpy_connect', { device_id: selectedLogData.value.source_device });
+  } catch (e) {
+    console.error("Refresh Source failed", e);
+  }
+};
+
+const refreshTargetStream = async () => {
+  if (!selectedLogData.value?.target_device) return;
+  try {
+    const res = await getScrcpyStreamUrl(selectedLogData.value.target_device);
+    // Force refresh by adding timestamp to fragment
+    targetStreamUrl.value = `${res.stream_url}&_t=${Date.now()}`;
+    socket.emit('scrcpy_connect', { device_id: selectedLogData.value.target_device });
+  } catch (e) {
+    console.error("Refresh Target failed", e);
   }
 };
 
@@ -186,25 +301,18 @@ const closeLogDetail = () => {
   }
 };
 
-// Auto-scroll ke bawah setiap kali log bertambah (hanya jika tidak di-pause user)
-const formattedLogs = computed(() => {
-  // logList.value sekarang adalah Object { content: "...", ... }
-  // Kita ambil content-nya, jika tidak ada (null/undefined), gunakan string kosong
-  const rawContent = logList.value?.content || '';
-  
-  // Pastikan kita memproses string
-  const lines = typeof rawContent === 'string' ? rawContent.split('\n') : [];
+// Auto-scroll ke bawah setiap kali log bertambah
+const processLogLines = (rawContent) => {
+  const content = rawContent || '';
+  const lines = typeof content === 'string' ? content.split('\n') : [];
 
   return lines.map(line => {
-    // 1. Deteksi Separator/Step (Contoh: [INFO] =======)
     if (line.includes('=====')) {
       return { 
         type: 'step', 
         message: line.replace(/\[INFO\]|\[ERROR\]|=|/g, '').trim() || 'Process Started' 
       };
     }
-
-    // 2. Deteksi Structured Log (Regex untuk: 2026-02-26 09:45:51 [INFO] Message)
     const logMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(\w+)\] (.*)/);
     if (logMatch) {
       return {
@@ -214,16 +322,39 @@ const formattedLogs = computed(() => {
         message: logMatch[3]
       };
     }
-
-    // 3. Plain text / Traceback / Fallback
     return { isStructured: false, message: line };
-  }).filter(log => log.message.trim() !== ''); // Buang baris kosong
-});
+  }).filter(log => log.message.trim() !== '');
+};
+
+const formattedLogs = computed(() => processLogLines(logList.value?.content));
+const formattedSourceLogs = computed(() => processLogLines(sourceLogList.value?.content));
+const formattedTargetLogs = computed(() => processLogLines(targetLogList.value?.content));
 
 watch(formattedLogs, async () => {
   if (isScrollPaused.value) return;
   await nextTick();
   scrollToBottom();
+});
+
+// --- LIFECYCLE / SOCKETS ---
+onMounted(() => {
+  fetchInitialData();
+
+  socket.on('device_status_update', (data) => {
+    // Update status di phoneBanks list jika id cocok
+    const pb = phoneBanks.value.find(p => String(p.id) === String(data.device_id));
+    if (pb) {
+      // Kita bisa tambah field status_color/status_text jika belum ada
+      pb.status_color = data.color;
+      pb.status_text = data.status;
+    }
+  });
+});
+
+onUnmounted(() => {
+  socket.off('device_status_update');
+  if (batchPollInterval) clearInterval(batchPollInterval);
+  if (logPollInterval) clearInterval(logPollInterval);
 });
 
 
@@ -319,6 +450,11 @@ const fetchInitialData = async () => {
   try {
     loading.value = true;
     const response = await getPhoneBanks();
+    const countBatch = await getCountTransferBatch();
+    countTransfer.value = countBatch.total || "Error";
+    console.log("response ")
+    console.log(countBatch);
+    console.log(countTransfer.value);
     phoneBanks.value = response.data || response || [];
   } catch (err) {
     error.value = "Failed to fetch phone banks";
@@ -346,13 +482,9 @@ const handlePhoneBankChange = async (pbId) => {
     const pbDetail = await getPhoneBank(pbId);
     const ip = pbDetail?.data?.ip || pbDetail?.ip;
 
-    const response = await fetch(`http://${ip}/api/transfer/target-devices`);
-    if (!response.ok) throw new Error('Device server unreachable');
-
-    const result = await response.json();
+    const result = await getProxyDevices(ip);
     const rawData = result.data || result || {};
 
-    console.log("rawData ", rawData);
 
     // Karena rawData sekarang adalah Object, kita olah seperti ini:
     const processedDevices = Object.entries(rawData).map(([deviceId, accounts]) => {
@@ -375,7 +507,6 @@ const handlePhoneBankChange = async (pbId) => {
     // Filter device yang benar-benar punya nomor (opsional)
     sourceDevicesOptions.value = processedDevices.filter(d => d.allNumbers.length > 0);
 
-    console.log("Processed Options:", sourceDevicesOptions.value);
 
   } catch (err) {
     console.error("Fetch Error:", err);
@@ -402,7 +533,6 @@ const handleDeviceChange = (devId) => {
   
   if (device && device.allNumbers) {
     // Transformasi allNumbers menjadi format yang dibaca CustomSelect Nomor
-    console.log("Semua Nomor di Device Change ",device.allNumbers);
     sourceNumbers.value = device.allNumbers.map(item => ({
       value: item.number,
       label: `${item.number} (${item.account_name})`, // Menampilkan nama akun agar lebih informatif
@@ -464,9 +594,8 @@ const phonebankDestination = computed(() => {
 const numberOptions = computed(() => {
   if (!sourceNumbers.value || !Array.isArray(sourceNumbers.value)) {
     console.log("Valuenya mledug boy", sourceNumbers)
-    return [];
+    return [];  
   }
-  console.log("Valuenya Di computed Number option ",sourceNumbers.value)
   return sourceNumbers.value.map(num => ({
     value: num.value,
     label: `0${num.value} - ${num.packageName}`,
@@ -481,7 +610,6 @@ const numberOptions = computed(() => {
 
 // Choose Target -------
 const handlePhoneBankTarget = async (pbId) => {
-  console.log("Siniii Target Phonebank", pbId);
   if (!pbId) {
     isTargetSelected.value = false;
     return;
@@ -497,20 +625,12 @@ const handlePhoneBankTarget = async (pbId) => {
     // 1. Ambil detail Phonebank untuk mendapatkan IP
     const pbDetail = await getPhoneBank(pbId);
     const ip = pbDetail.data?.ip || pbDetail.ip;
-    console.log(pbDetail.data);
     selectedTargetLabel.value = pbDetail.data?.name || pbDetail.data.type || 'Unknown Device';
     selectedTargetIP.value = ip;
 
-    // 2. Fetch ke API target menggunakan IP yang didapat
-    const response = await fetch(`http://${ip}/api/transfer/target-devices`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!response.ok) throw new Error('Device server unreachable');
-
-    const result = await response.json();
-    console.log("Resultnya pb target",result);
+    // 2. Fetch ke API target menggunakan backend proxy (menghindari CORS)
+    const result = await getProxyDevices(ip);
+    
     const rawDataTarget = result.data || {};
     // 3. Mapping data ke targetDevicesOptions
     targetDevicesOptions.value = Object.keys(rawDataTarget).map(deviceId => {
@@ -538,7 +658,6 @@ const handlePhoneBankTarget = async (pbId) => {
         statusColor: registeredAccounts.length > 0 ? 'text-green-400' : 'text-red-400'
       };
     });
-    console.log("Udah sampe nih istarget true");
     // 4. Munculkan section bawah jika berhasil
     isTargetSelected.value = true;
 
@@ -747,7 +866,7 @@ onUnmounted(() => {
                 </span>
               <div class="flex flex-col items-start leading-tight" >
                 <span class="text-[8px] text-blue-300/60 uppercase font-black tracking-tighter">Task Process</span>
-                <span class="text-xs font-bold text-white">{{ loading ? 'Running...' : '42 Active' }}</span>
+                <span class="text-xs font-bold text-white">{{ loading ? 'Running...' : countTransfer  + ' Active' }}</span>
               </div>
             </button>
           </div>
@@ -1358,132 +1477,316 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <!-- ==================== TERMINAL LOG MODAL ===================== -->
+    <!-- ==================== CYBERPUNK MONITORING DASHBOARD ===================== -->
     <Transition name="modal-scale">
       <div v-if="showLogDetail" class="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" @click="closeLogDetail"></div>
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-xl" @click="closeLogDetail"></div>
         
-        <div class="relative z-10 w-full max-w-5xl bg-[#020617] border border-cyan-500/30 rounded-2xl shadow-[0_0_80px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col h-[85vh]">
+        <!-- Dashboard Container -->
+        <div class="relative z-10 w-full max-w-[95vw] h-[92vh] bg-[#020817] border border-cyan-500/20 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.1)] overflow-hidden flex flex-col font-mono text-cyan-50">
           
-          <div class="px-6 py-4 bg-slate-900/40 border-b border-white/5 flex justify-between items-center backdrop-blur-md">
-            <div class="flex items-center gap-6">
-              <div class="flex gap-1.5">
-                <div class="w-3 h-3 rounded-full bg-red-500/40 border border-red-500/20"></div>
-                <div class="w-3 h-3 rounded-full bg-yellow-500/40 border border-yellow-500/20"></div>
-                <div class="w-3 h-3 rounded-full bg-green-500/40 border border-green-500/20"></div>
-              </div>
+          <!-- Cyber Header -->
+          <div class="px-6 py-3 bg-slate-900/40 border-b border-cyan-500/20 flex justify-between items-center bg-gradient-to-r from-slate-900/40 via-cyan-900/10 to-slate-900/40 relative overflow-hidden">
+            <!-- Decorative scanline -->
+            <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent h-px animate-[scanline_4s_linear_infinite]"></div>
+            
+            <div class="flex items-center gap-6 relative z-10">
               <div class="flex items-center gap-3">
-                <span class="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.4em] font-bold">Terminal Output</span>
-                <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                  <div class="animate-pulse w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>
-                  <span class="text-cyan-500 text-[9px] font-bold uppercase">{{ selectedLogData?.batch_id ? String(selectedLogData.batch_id).split('_')[0] : 'LOG' }}</span>
+                <div class="w-8 h-8 rounded bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                  <div class="w-2 h-2 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse"></div>
+                </div>
+                <div>
+                  <h2 class="text-xs font-black text-cyan-400 tracking-[0.2em] uppercase leading-none">Sphere Core Terminal</h2>
+                  <span class="text-[9px] text-cyan-600 font-bold uppercase tracking-[0.1em]">Protocol v2.0.42_STABLE</span>
                 </div>
               </div>
             </div>
-            <button @click="closeLogDetail" class="text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
-              <X class="w-5 h-5" />
-            </button>
+
+            <div class="flex items-center gap-8 relative z-10">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                <span class="text-[10px] font-bold text-green-400 uppercase tracking-widest">Active</span>
+              </div>
+              <div class="h-4 w-px bg-white/10 uppercase font-bold text-[8px] flex items-center px-1 text-gray-700">|</div>
+              <div class="flex items-center gap-2 text-cyan-400/80">
+                <Server class="w-3.5 h-3.5" />
+                <span class="text-[10px] font-bold uppercase tracking-widest">2 Units Linked</span>
+              </div>
+              <button @click="closeLogDetail" class="ml-4 text-cyan-400 hover:text-white transition-colors p-1 hover:bg-white/5 rounded border border-transparent hover:border-cyan-500/30">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
-          <!-- wrapper relative untuk posisi floating button -->
-          <div class="relative flex-1 flex flex-col min-h-0">
-
-          <!-- ── Floating Resume Scroll button ───────────────────────────────── -->
-          <Transition
-            enter-active-class="transition-all duration-300 ease-out"
-            enter-from-class="opacity-0 translate-y-4 scale-95"
-            enter-to-class="opacity-100 translate-y-0 scale-100"
-            leave-active-class="transition-all duration-200 ease-in"
-            leave-from-class="opacity-100 translate-y-0 scale-100"
-            leave-to-class="opacity-0 translate-y-4 scale-95"
-          >
-            <button
-              v-if="isScrollPaused"
-              @click="resumeScroll"
-              class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-black tracking-wider uppercase shadow-[0_0_20px_rgba(6,182,212,0.4)] bg-cyan-500/20 border border-cyan-400/60 text-cyan-300 hover:bg-cyan-500/40 hover:text-white backdrop-blur-sm transition-all"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-              </svg>
-              Resume Scroll
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </Transition>
-
-          <div ref="logScrollEl" @scroll="onLogScroll" class="flex-1 p-6 font-mono text-[12px] overflow-y-auto custom-scrollbar bg-[#020617]">
+          <!-- Main Scrollable Section -->
+          <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-[radial-gradient(circle_at_50%_50%,_rgba(6,182,212,0.03)_0%,_transparent_100%)]">
             
-            <div v-if="processTaskLoading" class="flex items-center gap-3 text-cyan-400/70 py-4 italic">
-              <div class="animate-spin h-3 w-3 border-2 border-cyan-400 border-t-transparent rounded-full"></div>
-              Synchronizing log stream...
-            </div>
-            
-            <div v-else-if="!formattedLogs.length" class="text-gray-600 italic text-center py-20">
-              No records found for Batch: {{ selectedLogData?.batch_id }}
-            </div>
-            
-            <div v-else class="space-y-0.5">
-              <div v-for="(log, index) in formattedLogs" :key="index" class="group">
-                
-                <div v-if="log.type === 'step'" 
-                  class="flex items-center gap-4 text-cyan-400/80 font-mono text-[11px] py-4 uppercase tracking-[0.15em]">
-                  <div class="h-[1px] flex-1 bg-gradient-to-r from-transparent via-cyan-500/30 to-cyan-500/20"></div>
-                  <span class="px-3">{{ log.message }}</span>
-                  <div class="h-[1px] flex-1 bg-gradient-to-l from-transparent via-cyan-500/30 to-cyan-500/20"></div>
+            <!-- Top Grid (3 Columns) -->
+            <div class="grid grid-cols-12 gap-6 items-stretch">
+              
+              <!-- Column 1: Source Phone -->
+              <div class="col-span-12 lg:col-span-6 bg-slate-900/30 border border-cyan-500/10 rounded-xl p-5 relative group hover:border-cyan-500/30 transition-all flex flex-col">
+                <div class="flex justify-between items-start mb-6">
+                  <h3 class="text-xs font-black text-white/90 uppercase tracking-widest flex items-center gap-2">
+                    <div class="w-1 h-3 bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]"></div>
+                    Handphone Sumber
+                  </h3>
+                  <div class="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center gap-1.5">
+                    <div class="w-1 h-1 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-[8px] font-bold text-green-400 uppercase tracking-widest">Online</span>
+                  </div>
                 </div>
-                
-                <div v-else-if="log.isStructured" 
-                  class="flex items-start gap-3 py-1 px-3 rounded-md hover:bg-white/[0.02] transition-all duration-150">
-                  
-                  <span class="text-gray-600 text-[10px] w-[65px] shrink-0 mt-0.5 font-light tabular-nums">
-                    {{ log.timestamp.split(' ')[1] }}
-                  </span>
-                  
-                  <div class="w-14 shrink-0">
-                    <span :class="{
-                      'text-cyan-400 bg-cyan-500/10': log.level === 'INFO',
-                      'text-red-400 bg-red-500/10 font-bold': log.level === 'ERROR' || log.level === 'FAILED',
-                      'text-purple-400 bg-purple-500/10': log.level === 'DEBUG',
-                      'text-yellow-400 bg-yellow-500/10': ['WARN', 'WARNING'].includes(log.level)
-                    }" class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md inline-block">
-                      {{ log.level }}
-                    </span>
+
+                <!-- Device Info Column -->
+                <div class="mb-8 text-center">
+                  <div class="px-4 py-2 bg-cyan-500/5 border border-cyan-500/20 rounded-lg inline-block mb-3">
+                    <span class="text-[8px] text-cyan-700 font-bold uppercase tracking-[0.2em] block mb-0.5">Model / System</span>
+                    <span class="text-xs text-white/90 font-black tracking-widest">{{ selectedLogData?.source_device || 'Detecting...' }}</span>
                   </div>
                   
-                  <span :class="{
-                    'text-red-300': log.level === 'ERROR',
-                    'text-emerald-400': /success|completed|berhasil|✅/i.test(log.message),
-                    'text-yellow-300': /warning|failed|⚠️/i.test(log.message),
-                    'text-gray-300': log.level === 'INFO'
-                  }" class="flex-1 leading-[1.6] break-words">
-                    {{ log.message }}
-                  </span>
+                  <div class="flex items-center justify-center gap-3 text-[10px] font-mono">
+                    <span class="text-cyan-400">{{ selectedLogData?.source_ip || '---.---.---.---' }}</span>
+                  </div>
                 </div>
                 
-                <div v-else 
-                  class="text-gray-500/60 ml-[145px] py-0.5 text-[10px] leading-tight font-mono whitespace-pre-wrap">
-                  {{ log.message }}
+                <!-- Device Stream column -->
+                <div class="h-full overflow-y-auto custom-scrollbar p-6">
+                  <div class="flex flex-wrap justify-center gap-4">
+                      <div class="bg-[#050C25] w-full max-w-[425px] h-[760px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
+                        
+                        <!-- Header (Only for Active/Offline) -->
+                        <div class="w-full py-2.5 bg-[#081736] border-b border-cyan-500/20 text-center relative shrink-0">
+                          <span class="text-cyan-400 font-bold tracking-widest text-[10px] uppercase">Source Stream</span>
+                          <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                            <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                          </div>
+                        </div>
+                        <!-- Content Area -->
+                        <div class="flex-1 w-full relative h-full flex overflow-hidden aspect-video">
+                            
+                            <!-- ACTIVE STATE -->
+                          <template v-if="sourceStreamUrl">
+                              <iframe 
+                                  :src="sourceStreamUrl" 
+                                  class="absolute inset-0 w-full h-full border-none"
+                                  allowfullscreen
+                                ></iframe>
+                          </template>
+                        </div>
+                      </div>
+                  </div>
                 </div>
+
+                <button 
+                  @click="refreshSourceStream"
+                  class="mt-6 w-full py-3 bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-400 text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 group/btn"
+                >
+                  <RefreshCw class="w-3.5 h-3.5 group-hover/btn:rotate-180 transition-transform duration-700" />
+                  Signal Refresh
+                </button>
+              </div>
+
+              <!-- Column 2: Target Phone -->
+              <div class="col-span-12 lg:col-span-6 bg-slate-900/30 border border-cyan-500/10 rounded-xl p-5 relative group hover:border-cyan-500/30 transition-all flex flex-col">
+                <div class="flex justify-between items-start mb-6">
+                  <h3 class="text-xs font-black text-white/90 uppercase tracking-widest flex items-center gap-2">
+                    <div class="w-1 h-3 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+                    Handphone Target
+                  </h3>
+                  <div class="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center gap-1.5">
+                    <div class="w-1 h-1 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-[8px] font-bold text-green-400 uppercase tracking-widest">Active Link</span>
+                  </div>
+                </div>
+                <!-- Device Info Column -->
+                <div class="mb-8 text-center">
+                   <div class="px-4 py-2 bg-blue-500/5 border border-blue-500/20 rounded-lg inline-block mb-3">
+                    <span class="text-[8px] text-blue-700 font-bold uppercase tracking-[0.2em] block mb-0.5">Model / System</span>
+                    <span class="text-xs text-white/90 font-black tracking-widest">{{ selectedLogData?.target_device || 'Detecting...' }}</span>
+                  </div>
+                  
+                  <div class="flex items-center justify-center gap-3 text-[10px] font-mono text-right">
+                    <span class="text-blue-400">{{ selectedLogData?.target_ip || '---.---.---.---' }}</span>
+                  </div>
+                </div>
+                <div class="h-full overflow-y-auto custom-scrollbar p-6">
+                  <div class="flex flex-wrap justify-center gap-4">
+                      <div class="bg-[#050C25] w-full max-w-[425px] h-[760px] border border-blue-900/50 rounded-xl overflow-hidden flex flex-col items-center relative shadow-[0_0_30px_rgba(8,34,130,0.3)]">
+                        
+                        <!-- Header (Only for Active/Offline) -->
+                        <div class="w-full py-2.5 bg-[#081736] border-b border-blue-500/20 text-center relative shrink-0">
+                          <span class="text-blue-400 font-bold tracking-widest text-[10px] uppercase">Target Stream</span>
+                          <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                            <div class="w-1.5 h-1.5 rounded-full" :class="targetStreamUrl ? 'bg-green-500' : 'bg-red-500'"></div>
+                          </div>
+                        </div>
+                        <!-- Content Area -->
+                        <div class="flex-1 w-full relative h-full flex overflow-hidden aspect-video">
+                            
+                            <!-- ACTIVE STATE -->
+                          <template v-if="targetStreamUrl">
+                              <iframe 
+                                  :src="targetStreamUrl" 
+                                  class="absolute inset-0 w-full h-full border-none"
+                                  allowfullscreen
+                                ></iframe>
+                          </template>
+                        </div>
+                      </div>
+                  </div>
+                </div>
+
+
+                <button 
+                  @click="refreshTargetStream"
+                  class="mt-6 w-full py-3 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 group/btn"
+                >
+                  <RefreshCw class="w-3.5 h-3.5 group-hover/btn:-rotate-180 transition-transform duration-700" />
+                  Remote Refresh
+                </button>
+              </div>
+            </div>
+
+             <div class="bg-black/80 backdrop-blur-xl border border-cyan-500/20 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.1)] relative overflow-hidden group/terminal">
+               <div class="flex justify-between items-center px-6 py-4 bg-slate-900/50 border-b border-cyan-500/10 relative z-10">
+                 <div class="flex items-center gap-4">
+                    <div class="flex gap-1.5">
+                       <div class="w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-500/50"></div>
+                       <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/30 border border-yellow-500/50"></div>
+                       <div class="w-2.5 h-2.5 rounded-full bg-green-500/30 border border-green-500/50"></div>
+                    </div>
+                    <div class="h-4 w-px bg-white/10 mx-2"></div>
+                    <h3 class="text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                       <Activity class="w-3.5 h-3.5 animate-pulse" />
+                       Protocol Trace Logs
+                    </h3>
+                 </div>
+                 
+                 <div class="flex items-center gap-3">
+                    <div class="flex p-1 bg-black/40 rounded-xl border border-white/5">
+                       <button 
+                         @click="currentLogTab = 'global'"
+                         :class="currentLogTab === 'global' ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'text-gray-500 hover:text-cyan-400'"
+                         class="px-5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-300"
+                       >
+                         Global
+                       </button>
+                       <button 
+                         @click="currentLogTab = 'split'"
+                         :class="currentLogTab === 'split' ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'text-gray-500 hover:text-cyan-400'"
+                         class="px-5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-300"
+                       >
+                         Split
+                       </button>
+                    </div>
+                    <button 
+                      @click="logList = { content: '' }; sourceLogList = { content: '' }; targetLogList = { content: '' }"
+                      class="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest border border-red-500/20 transition-all active:scale-95"
+                    >
+                       <Trash2 class="w-3 h-3" />
+                       Clear
+                    </button>
+                 </div>
+               </div>
+
+               <!-- Global Log View -->
+               <div v-if="currentLogTab === 'global'" class="h-[320px] relative">
+                  <div ref="logScrollEl" @scroll="onLogScroll" class="h-full p-6 overflow-y-auto custom-scrollbar font-mono space-y-1.5 text-[10px] bg-black/20">
+                     <div v-for="(log, idx) in formattedLogs" :key="idx" class="flex gap-4 group/line py-0.5 border-l-2 border-transparent hover:border-cyan-500/50 hover:bg-cyan-500/5 px-2 transition-all">
+                        <span class="text-cyan-900 shrink-0 font-bold font-mono opacity-50">{{ log.timestamp?.split(' ')[1] || '---' }}</span>
+                        <span :class="{
+                           'text-cyan-400': log.level === 'INFO', 
+                           'text-emerald-400': log.level === 'SUCCESS' || log.level === 'COMPLETED', 
+                           'text-red-500 font-black': log.level === 'ERROR' || log.level === 'FAILED',
+                           'text-yellow-400': log.level === 'WARNING'
+                        }" class="w-16 shrink-0 font-black text-[9px] leading-tight mt-0.5 tracking-tighter italic">[{{ log.level || 'INFO' }}]</span>
+                        <span class="text-gray-400 leading-relaxed group-hover/line:text-cyan-100 transition-colors flex-1">{{ log.message }}</span>
+                     </div>
+                     <div v-if="!isScrollPaused" class="flex items-center gap-2 pt-2 opacity-30">
+                        <span class="w-1.5 h-3 bg-cyan-500 animate-[blink_1s_infinite]"></span>
+                        <span class="text-[8px] text-cyan-500 font-bold uppercase tracking-widest">Awaiting system output...</span>
+                     </div>
+                  </div>
+                  
+                  <!-- Pause Indicator -->
+                  <div v-if="isScrollPaused" class="absolute bottom-4 right-8 px-4 py-2 bg-yellow-500/90 text-black text-[9px] font-black uppercase tracking-widest rounded-lg shadow-xl flex items-center gap-2 cursor-pointer hover:bg-yellow-400 transition-all z-20" @click="resumeScroll">
+                     <RefreshCw class="w-3 h-3 animate-spin-slow" />
+                     Auto-scroll Paused - Click to Resume
+                  </div>
+               </div>
+
+                <!-- Side-by-Side (Split) View -->
+                <div v-else class='grid grid-cols-1 md:grid-cols-2 gap-[1px] bg-cyan-500/10 border-t border-cyan-500/10 h-[320px] relative z-10'>
+                   <!-- Source Log Panel -->
+                   <div class='flex flex-col bg-black/40 group/source-log transition-all'>
+                     <div class='px-4 py-2 bg-slate-900/80 flex justify-between items-center text-left'>
+                        <span class='text-[8px] font-black text-cyan-500 uppercase tracking-widest flex items-center gap-3'>
+                           <div class='w-1 h-3 bg-cyan-500'></div>
+                           Source Trace: {{ selectedLogData?.source_ip || '...' }}
+                        </span>
+                     </div>
+                     <div ref='logScrollEl' @scroll='onLogScroll' class='flex-1 p-5 overflow-y-auto custom-scrollbar font-mono space-y-2 text-[10px] text-left'>
+                        <div v-for='(log, idx) in formattedSourceLogs' :key='idx' class='flex gap-3 group/line px-1'>
+                           <span :class='{
+                              "text-cyan-400": log.level === "INFO", 
+                              "text-emerald-400": log.level === "SUCCESS" || log.level === "COMPLETED", 
+                              "text-red-500": log.level === "ERROR" || log.level === "FAILED"
+                           }' class='shrink-0 font-black text-[8px] italic'>></span>
+                           <span class='text-gray-400 leading-relaxed group-hover/line:text-cyan-100 transition-colors'>{{ log.message }}</span>
+                        </div>
+                     </div>
+                   </div>
+ 
+                   <!-- Target Log Panel -->
+                   <div class='flex flex-col bg-black/40 group/target-log transition-all border-l border-cyan-500/10'>
+                      <div class='px-4 py-2 bg-slate-900/80 flex justify-between items-center text-left'>
+                         <span class='text-[8px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-3'>
+                            <div class='w-1 h-3 bg-blue-500 text-blue-500'></div>
+                            Target Trace: {{ selectedLogData?.target_ip || '...' }}
+                         </span>
+                      </div>
+                      <div class='flex-1 p-5 overflow-y-auto custom-scrollbar font-mono space-y-2 text-[10px] text-left'>
+                         <div v-for='(log, idx) in formattedTargetLogs' :key='idx' class='flex gap-3 group/line px-1'>
+                             <span :class='{
+                               "text-cyan-400": log.level === "INFO", 
+                               "text-emerald-400": log.level === "SUCCESS" || log.level === "COMPLETED", 
+                               "text-red-500": log.level === "ERROR" || log.level === "FAILED"
+                            }' class='shrink-0 font-black text-[8px] italic'>></span>
+                            <span class='text-gray-400 leading-relaxed group-hover/line:text-blue-100 transition-colors'>{{ log.message }}</span>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+            </div>
+          </div>
+
+          <!-- Footer Status Bar -->
+          <div class="px-6 py-2 bg-[#020611] border-t border-cyan-500/20 flex justify-between items-center text-[8px] font-black text-gray-700 uppercase tracking-[0.4em]">
+            <div class="flex items-center gap-8">
+              <span class="text-cyan-900">Sphere Core System v2.0.42</span>
+              <div class="flex gap-6">
+                 <span>MEM_ALLOC: 128.4 MB</span>
+                 <span>PROC_LOAD: 04.12%</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-6">
+              <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]"></span>
+                <span class="text-green-900">Encrypted</span>
+              </div>
+              <div class="flex gap-2">
+                <span>TIMESTAMP:</span>
+                <span class="text-cyan-900">2026.04.23_16:53:29</span>
               </div>
             </div>
           </div>
-          </div><!-- end wrapper relative -->
-
-          <div class="px-8 py-3 bg-slate-900/20 border-t border-white/5 text-[10px] text-gray-500 flex justify-between items-center font-mono">
-            <div class="flex items-center gap-4">
-              <span>{{ formattedLogs.length }} LINES RECORDED</span>
-              <span class="text-gray-700">|</span>
-              <span class="text-cyan-500/50 uppercase tracking-widest font-bold">Sphere Core v2.0</span>
-            </div>
-            <div class="flex gap-4">
-              <button @click="closeLogDetail" class="hover:text-white transition-colors">[ ESC ]</button>
-              <button class="text-cyan-400/70 hover:text-cyan-400 transition-colors uppercase tracking-widest font-bold">Export Logs</button>
-            </div>
-          </div>
+          
         </div>
       </div>
     </Transition>
+
+
 
   </div>
 </template>
@@ -1578,6 +1881,32 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+@keyframes data-flow {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .fade-enter-active,

@@ -66,6 +66,8 @@ export const getTasks = async () => {
     return response.data;
 };
 
+export const getProxyDevices = (ip) => api.get('/api/account-transfer/proxy/devices', { params: { ip } }).then(res => res.data);
+
 /**
  * Mengambil semua device yang tersedia untuk target automasi
  */
@@ -452,6 +454,8 @@ export const getBatchProgress = async (batchId) => {
     // Combine data
     const summary = summaryResponse.data;
     const transfers = transfersResponse.data;
+    console.log("HASIL TRANSFER DATA");
+    console.log(transfers);
 
     // Calculate progress_percentage
     const totalCompleted = summary.completed + summary.failed;
@@ -568,6 +572,19 @@ export const getProcessTaskList = async (params = {}) => {
  * Ambil semua transfer batches langsung dari tabel transfer_batches
  * @param {Object} params - { limit, skip }
  */
+
+export const getCountTransferBatch = async (params = {}) => {
+    try {
+        const response = await api.get('/api/account-transfer/transfer-batches-count')
+        const data = response.data;
+        console.log("Data Count TransferBatch")
+        console.log(data);
+        return data ? data : "Error Unknown Data";
+    } catch (error) {
+        return error;
+    }
+}
+
 export const getTransferBatchesList = async (params = {}) => {
     try {
         // Coba endpoint khusus transfer-batches untuk data dari tabel transfer_batches
@@ -593,7 +610,6 @@ export const getTransferBatchesList = async (params = {}) => {
                     batch_id: bid,
                     account_type: t.account_type,
                     status: 'pending',
-                    created_at: t.created_at,
                     updated_at: t.updated_at,
                     total_requested: 0,
                     total_success: 0, total_failed: 0, processing: 0, pending: 0
@@ -620,41 +636,42 @@ export const getTransferBatchesList = async (params = {}) => {
 };
 
 /**
+ * Mendapatkan URL streaming scrcpy untuk sebuah device
+ * @param {string} deviceId 
+ */
+export const getScrcpyStreamUrl = async (deviceId) => {
+    const response = await api.get(`/scrcpy/stream-url/${deviceId}`);
+    return response.data;
+};
+
+/**
  * Get Batch Log Running Transfers 
  */
 
-export const getBatchLog = async (batch) => {
+export const getBatchLog = async (batch, type = "global") => {
     try {
-        const batchId = batch.batch_name;
-        console.log("idbatch : "+ batchId)
-        const response = await api.get(`api/account-transfer/logs/${batchId}/show`);
+        const batchName = batch.batch_name || batch.id;
+        const response = await api.get(`/api/account-transfer/logs/${batchName}/show`, {
+            params: { type }
+        });
 
-        console.log("Response Full:", response);
-        // Jika backend kirim teks biasa, kita split per baris, balikkan, lalu gabung lagi
-        console.log("Status", !response.status == 200 || !response.statusText == "OK");
-        console.log("StatusText",!response.statusText == "OK")
-        if (!response.status == 200) {
-            // Menangani error jika file tidak ditemukan (404)
-            const errorData = await response.json();
-            throw new Error(errorData.detail || "Gagal mengambil log");
-        }
-        console.log("Sampe sini nih")
         const data = response.data;
+        if (!data || !data.content) {
+            return { content: "", type: type };
+        }
 
-        console.log(
-            "Hasilnya",
-            data
-        )
+        // Descending content for terminal feel (optional, can be done in component)
         const descendingContent = data.content
             .split('\n')
             .reverse()
             .join('\n');
 
-        return { ...data, content: descendingContent }; // Mengembalikan object { batch_id, filename, content }
-    }catch (err) {
-
+        return { ...data, content: descendingContent };
+    } catch (err) {
+        console.error(`Failed to fetch ${type} logs:`, err);
+        return { content: `Waiting for ${type} logs...`, type: type };
     }
-}
+};
 
 
 
